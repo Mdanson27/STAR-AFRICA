@@ -40,4 +40,13 @@ await git.push({
   headers: { Authorization: `Bearer ${credential.token}` },
 });
 
+const refs = await git.listServerRefs({
+  http,
+  url: credential.remote_url,
+  prefix: 'refs/heads/',
+  headers: { Authorization: `Bearer ${credential.token}` },
+});
+const remoteHead = refs.find((item) => item.ref === `refs/heads/${credential.branch}`)?.oid;
+if (remoteHead !== commitSha) throw new Error(`Remote branch verification failed.`);
+
 process.stdout.write(`${commitSha}\n`);

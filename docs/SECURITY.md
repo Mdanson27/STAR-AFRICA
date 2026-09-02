@@ -1,7 +1,8 @@
 # Security
 
-- Hosted identity uses platform-provided, server-read authentication headers.
-- API routes reject anonymous production requests.
+- Demo identity uses an HMAC-signed, HttpOnly, SameSite session cookie. The client never authorizes itself.
+- Demo credentials are fixed fictional accounts, are labelled development-only, and require the explicit `STAR_AFRICA_DEMO_MODE` switch in production builds.
+- API routes reject anonymous requests and enforce action permissions again on the server.
 - Permission checks are modeled server-side; frontend visibility is not authorization.
 - Zod validates external request payloads.
 - Drizzle prepared statements protect query parameters.
@@ -11,4 +12,4 @@
 - Secrets belong only in environment/provider configuration.
 - Errors return safe user messages without database or provider secrets.
 
-Before production rollout, enforce company membership allowlists, provider-specific rate limits, backup restore exercises, security headers, dependency remediation, and an independent penetration test.
+Before production rollout, disable demo mode and replace it with the approved workforce identity provider; then enforce company membership allowlists, provider-specific rate limits, backup restore exercises, security headers, dependency remediation, and an independent penetration test.

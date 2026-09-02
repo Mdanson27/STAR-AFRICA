@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { activity, attentionItems, cashFlow, kpis, money, projects } from '@/lib/demo-data';
 
 const navigation = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard }, { label: 'Bids & tenders', path: '/bids', icon: ClipboardCheck, count: 8 },
+  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }, { label: 'Bids & tenders', path: '/bids', icon: ClipboardCheck, count: 8 },
   { label: 'Projects', path: '/projects', icon: FolderKanban, count: 12 }, { label: 'Procurement', path: '/procurement', icon: ShoppingCart, count: 5 },
   { label: 'Suppliers', path: '/suppliers', icon: Users }, { label: 'Inventory', path: '/inventory', icon: Package }, { label: 'Customers & sales', path: '/customers', icon: Users },
   { label: 'Invoices', path: '/invoices', icon: ReceiptText, count: 9 }, { label: 'Payments', path: '/payments', icon: WalletCards },
@@ -24,7 +24,7 @@ const navigation = [
 ];
 
 const quickActions = [
-  ['New bid', 'Track an opportunity and its requirements', ClipboardCheck, '/bids'],
+  ['New bid', 'Track an opportunity and its requirements', ClipboardCheck, '/bids/opportunities/new'],
   ['New project', 'Create from scratch or a winning bid', FolderKanban, '/projects'],
   ['New invoice', 'Bill a client with supporting documents', ReceiptText, '/invoices'],
   ['Record expense', 'Capture a project or operating cost', CircleDollarSign, '/finance'],
@@ -41,7 +41,7 @@ function CashFlowChart() {
   return <svg className="cash-svg" viewBox="0 0 600 220" aria-labelledby="cashflow-title"><title id="cashflow-title">Income rose from UGX 420 million in March to UGX 880 million in August while expenses rose from UGX 310 million to UGX 535 million.</title><defs><linearGradient id="incomeArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--brand-primary)" stopOpacity=".24"/><stop offset="1" stopColor="var(--brand-primary)" stopOpacity=".02"/></linearGradient></defs>{[40,80,120,160].map((line) => <line key={line} x1="35" y1={line} x2="570" y2={line} stroke="var(--border)" strokeDasharray="3 5"/>)}<path d={area} fill="url(#incomeArea)"/><polyline points={incomePoints} fill="none" stroke="var(--brand-primary)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/><polyline points={expensePoints} fill="none" stroke="var(--chart-3)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>{cashFlow.map((item, index) => <g key={item.month}><circle cx={x(index)} cy={y(item.income)} r="3.5" fill="var(--surface)" stroke="var(--brand-primary)" strokeWidth="2"/><text x={x(index)} y="212" textAnchor="middle">{item.month}</text></g>)}</svg>;
 }
 
-export function StarAfricaApp({ userName, userRole }: { userName: string; userRole: string }) {
+export function StarAfricaApp({ userName, userRole, canCreateBids = false }: { userName: string; userRole: string; canCreateBids?: boolean }) {
   const active = 'Dashboard';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -125,7 +125,7 @@ export function StarAfricaApp({ userName, userRole }: { userName: string; userRo
         </div>
       </main>
 
-      <Dialog open={quickOpen} onOpenChange={setQuickOpen}><DialogContent className="quick-dialog"><DialogHeader><DialogTitle>Quick create</DialogTitle><DialogDescription>Start a connected Star Africa workflow.</DialogDescription></DialogHeader><div className="quick-grid">{quickActions.map(([title, description, Icon, path]) => <button key={title} onClick={() => window.location.assign(path)}><span><Icon /></span><div><strong>{title}</strong><small>{description}</small></div><ChevronRight /></button>)}</div><p className="demo-note"><span /> Demo workspace · records are preview-only until the database migration is applied.</p></DialogContent></Dialog>
+      <Dialog open={quickOpen} onOpenChange={setQuickOpen}><DialogContent className="quick-dialog"><DialogHeader><DialogTitle>Quick create</DialogTitle><DialogDescription>Start a connected Star Africa workflow.</DialogDescription></DialogHeader><div className="quick-grid">{quickActions.filter(([title]) => title !== 'New bid' || canCreateBids).map(([title, description, Icon, path]) => <button key={title} onClick={() => window.location.assign(path)}><span><Icon /></span><div><strong>{title}</strong><small>{description}</small></div><ChevronRight /></button>)}</div>{!canCreateBids ? <p className="demo-note"><ShieldCheck /> Your role can view bids but cannot create opportunities.</p> : <p className="demo-note"><span /> Demo workspace · server permissions are active.</p>}</DialogContent></Dialog>
 
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}><DialogContent className="search-dialog"><DialogHeader><DialogTitle>Search Star Africa</DialogTitle><DialogDescription>Find projects, bids, invoices, people, or documents.</DialogDescription></DialogHeader><div className="search-field"><Search /><input aria-label="Global search" placeholder="Try ‘Jinja’ or ‘INV-2026’" /></div><div className="search-results"><p>Suggested</p>{projects.slice(0, 2).map((project) => <button key={project.code} onClick={() => window.location.assign('/projects')}><FolderKanban/><span><strong>{project.name}</strong><small>{project.code} · {project.client}</small></span><kbd>↵</kbd></button>)}</div></DialogContent></Dialog>
     </div>

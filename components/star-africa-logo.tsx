@@ -12,10 +12,10 @@ export function StarAfricaLogo({ size = 'medium', linked = false, className = ''
     <span className={`star-africa-logo-frame star-africa-logo-${size} ${className}`.trim()}>
       <Image
         className="star-africa-logo"
-        src="/branding/star-africa-logo.png"
+        src="/branding/star-africa-logo-compact.png"
         alt="Star Africa Logistics"
-        width={2000}
-        height={1601}
+        width={1649}
+        height={820}
         priority={size === 'large'}
       />
     </span>

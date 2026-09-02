@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     images: ['/og.png'],
   },
   icons: {
-    icon: '/branding/star-africa-logo.png',
-    apple: '/branding/star-africa-logo.png',
+    icon: [{ url: '/icon.png', type: 'image/png', sizes: '32x32' }],
+    apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
   },
 };
 

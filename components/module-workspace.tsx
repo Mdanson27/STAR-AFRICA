@@ -24,7 +24,7 @@ const iconMap: Record<string, typeof LayoutDashboard> = {
 };
 const systemSlugs = new Set(['administration', 'integrations', 'settings']);
 
-export function ModuleWorkspace({ config }: { config: ModuleConfig }) {
+export function ModuleWorkspace({ config, user }: { config: ModuleConfig; user: { name:string; role:string } }) {
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState(config.tabs[0]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,7 +52,7 @@ export function ModuleWorkspace({ config }: { config: ModuleConfig }) {
         <div className="sidebar-brand"><StarAfricaLogo size="medium" linked /><button className="icon-button sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X /></button></div>
         <nav className="nav-stack">
           <p className="nav-label">Workspace</p>
-          <Link className="nav-item" href="/"><LayoutDashboard /><span>Dashboard</span></Link>
+          <Link className="nav-item" href="/dashboard"><LayoutDashboard /><span>Dashboard</span></Link>
           {modules.filter((item) => !systemSlugs.has(item.slug)).map((item) => { const Icon = iconMap[item.slug]; return <Link key={item.slug} className={`nav-item ${item.slug === config.slug ? 'active' : ''}`} href={`/${item.slug}`}><Icon /><span>{item.title}</span><ChevronRight className="nav-arrow" /></Link>; })}
           <p className="nav-label nav-label-spaced">System</p>
           {modules.filter((item) => systemSlugs.has(item.slug)).map((item) => { const Icon = iconMap[item.slug]; return <Link key={item.slug} className={`nav-item ${item.slug === config.slug ? 'active' : ''}`} href={`/${item.slug}`}><Icon /><span>{item.title}</span><ChevronRight className="nav-arrow" /></Link>; })}
@@ -65,7 +65,7 @@ export function ModuleWorkspace({ config }: { config: ModuleConfig }) {
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu /></button><div className="breadcrumbs"><Link href="/">Star Africa</Link><ChevronRight /><strong>{config.title}</strong></div></div>
           <label className="global-search module-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${config.title.toLowerCase()}…`} aria-label={`Search ${config.title}`} /><kbd>⌘ K</kbd></label>
-          <div className="topbar-actions"><Link className="icon-button notification-button" href="/notifications" aria-label="Notifications"><Bell /><span /></Link><div className="profile"><span className="avatar">AN</span><div><strong>Amina Nsubuga</strong><span>Director · Demo workspace</span></div><ChevronDown /></div></div>
+          <div className="topbar-actions"><Link className="icon-button notification-button" href="/notifications" aria-label="Notifications"><Bell /><span /></Link><div className="profile"><span className="avatar">{user.name.split(' ').slice(0,2).map((part)=>part[0]).join('')}</span><div><strong>{user.name}</strong><span>{user.role} · Demo workspace</span></div><ChevronDown /></div></div>
         </header>
 
         <div className="page-content module-content">
