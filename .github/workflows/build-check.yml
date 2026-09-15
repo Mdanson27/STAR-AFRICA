@@ -10,8 +10,24 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: starafrica
+          POSTGRES_PASSWORD: starafrica
+          POSTGRES_DB: starafrica_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U starafrica -d starafrica_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     env:
       STAR_AFRICA_DEMO_MODE: 'true'
+      DATABASE_URL: postgresql://starafrica:starafrica@127.0.0.1:5432/starafrica_test
+      DATABASE_URL_UNPOOLED: postgresql://starafrica:starafrica@127.0.0.1:5432/starafrica_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,6 +42,9 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      - name: Bootstrap Postgres schema
+        run: npm run db:bootstrap
 
       - name: Production build
         run: npm run build
