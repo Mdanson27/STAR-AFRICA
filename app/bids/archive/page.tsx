@@ -1,19 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { requireSession } from '@/lib/security/session';
+import { requireAuthorizedSession } from '@/lib/security/session';
 import { demoBids, formatMoney, labelStage } from '@/lib/bids/demo-data';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Bid Archive' };
 export default async function ArchivePage() {
-  const session = await requireSession('/bids/archive');
+  const session = await requireAuthorizedSession('bids.view','/bids/archive');
   const archived = demoBids.filter((bid) =>
     ['won', 'lost', 'cancelled', 'archived'].includes(bid.stage),
   );
   return (
     <AppShell
       active="Bids & tenders"
-      user={{ name: session.name, role: session.role }}
+      user={session}
     >
       <div className="page-content archive-page">
         <div className="section-page-heading">

@@ -16,19 +16,19 @@ import { DEMO_PASSWORD, demoAccounts } from '@/lib/security/demo-accounts';
 
 const featuredRoles = [
   'DIRECTOR',
-  'BIDS & TENDERS OFFICER',
-  'FINANCE ADMIN',
-  'PROJECT MANAGER',
-  'AUDITOR / VIEWER',
-  'SUPER ADMIN',
+  'BIDS_OFFICER',
+  'PROJECT_MANAGER',
+  'SITE_MANAGER',
+  'AUDITOR',
+  'SUPER_ADMIN',
 ] as const;
 const labels: Record<string, string> = {
-  'BIDS & TENDERS OFFICER': 'Bids Officer',
-  'FINANCE ADMIN': 'Finance',
-  'AUDITOR / VIEWER': 'Auditor',
-  'SUPER ADMIN': 'Super Admin',
+  BIDS_OFFICER: 'Bids Officer',
+  SITE_MANAGER: 'Site Manager',
+  AUDITOR: 'Auditor',
+  SUPER_ADMIN: 'Super Admin',
   DIRECTOR: 'Director',
-  'PROJECT MANAGER': 'Project Manager',
+  PROJECT_MANAGER: 'Project Manager',
 };
 
 export function LoginExperience({ returnTo }: { returnTo: string }) {
@@ -49,13 +49,13 @@ export function LoginExperience({ returnTo }: { returnTo: string }) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email, password, remember }),
     });
-    const result = (await response.json()) as { error?: string };
+    const result = (await response.json()) as { error?: string; landingPath?:string };
     if (!response.ok) {
       setError(result.error ?? 'Unable to sign in.');
       setBusy(false);
       return;
     }
-    router.push(returnTo);
+    router.push(result.landingPath ?? returnTo);
     router.refresh();
   }
 

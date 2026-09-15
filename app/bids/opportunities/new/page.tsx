@@ -11,5 +11,5 @@ export const metadata: Metadata = { title: 'New Opportunity' };
 export default async function NewOpportunityPage() {
   const session=await requireSession('/bids/opportunities/new');
   if (!hasPermission(session.permissions,'bids.create')) redirect('/bids?permission=denied');
-  return <AppShell active="Bids & tenders" user={{name:session.name,role:session.role}}><NewOpportunityForm/></AppShell>;
+  return <AppShell active="Bids & tenders" user={session}><NewOpportunityForm/></AppShell>;
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { requireSession } from '@/lib/security/session';
+import { requireAuthorizedSession } from '@/lib/security/session';
 import { hasPermission } from '@/lib/security/permissions';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Bid Expenses' };
@@ -53,12 +53,12 @@ const expenses = [
   ],
 ];
 export default async function BidExpensesPage() {
-  const session = await requireSession('/bids/expenses');
+  const session = await requireAuthorizedSession('bids.expenses.view','/bids/expenses');
   const canCreate = hasPermission(session.permissions, 'bids.expenses.create');
   return (
     <AppShell
       active="Bids & tenders"
-      user={{ name: session.name, role: session.role }}
+      user={session}
     >
       <div className="page-content expenses-page">
         <div className="section-page-heading">

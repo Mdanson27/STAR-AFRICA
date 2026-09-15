@@ -22,6 +22,27 @@
       "when": 1788345055785,
       "tag": "0002_handy_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788412363212,
+      "tag": "0003_square_warpath",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788881024969,
+      "tag": "0004_young_queen_noir",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788883947103,
+      "tag": "0005_light_vertigo",
+      "breakpoints": true
     }
   ]
 }

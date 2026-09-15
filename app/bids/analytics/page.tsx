@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { requireSession } from '@/lib/security/session';
+import { requireAuthorizedSession } from '@/lib/security/session';
 import { demoBids, formatMoney } from '@/lib/bids/demo-data';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Bid Analytics' };
 export default async function BidAnalyticsPage() {
-  const session = await requireSession('/bids/analytics');
+  const session = await requireAuthorizedSession('bids.analytics.view','/bids/analytics');
   const decisions = demoBids.filter((bid) =>
     ['won', 'lost'].includes(bid.stage),
   );
@@ -24,7 +24,7 @@ export default async function BidAnalyticsPage() {
   return (
     <AppShell
       active="Bids & tenders"
-      user={{ name: session.name, role: session.role }}
+      user={session}
     >
       <div className="page-content analytics-page">
         <div className="section-page-heading">

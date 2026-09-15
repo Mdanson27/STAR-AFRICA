@@ -3,16 +3,17 @@ import Image from 'next/image';
 
 type StarAfricaLogoProps = {
   size?: 'small' | 'medium' | 'large';
+  compact?: boolean;
   linked?: boolean;
   className?: string;
 };
 
-export function StarAfricaLogo({ size = 'medium', linked = false, className = '' }: StarAfricaLogoProps) {
+export function StarAfricaLogo({ size = 'medium', compact = false, linked = false, className = '' }: StarAfricaLogoProps) {
   const image = (
     <span className={`star-africa-logo-frame star-africa-logo-${size} ${className}`.trim()}>
       <Image
         className="star-africa-logo"
-        src="/branding/star-africa-logo-compact.png"
+        src={compact ? '/branding/star-africa-mark.png' : '/branding/star-africa-logo-compact.png'}
         alt="Star Africa Logistics"
         width={1649}
         height={820}
