@@ -169,7 +169,9 @@ class NeonD1Database {
   }
 }
 
-const filesStore = getStore('star-africa-documents');
+function documentsStore() {
+  return getStore('star-africa-documents');
+}
 
 const files = {
   async put(
@@ -177,13 +179,13 @@ const files = {
     value: ArrayBuffer | Blob | string,
     _options?: unknown,
   ) {
-    await filesStore.set(key, value);
+    await documentsStore().set(key, value);
   },
   async get(key: string) {
-    return filesStore.get(key, { type: 'arrayBuffer' });
+    return documentsStore().get(key, { type: 'arrayBuffer' });
   },
   async delete(key: string) {
-    await filesStore.delete(key);
+    await documentsStore().delete(key);
   },
 };
 
