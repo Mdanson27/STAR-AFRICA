@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/*': ['./drizzle/**/*.sql', './db/seed.sql'],
   },
+  // A small number of routes still import the old Cloudflare binding module.
+  // During the demo migration, resolve those imports to the Netlify/Neon shim
+  // instead of requiring Cloudflare packages at build or runtime.
+  turbopack: {
+    resolveAlias: {
+      'cloudflare:workers': './lib/db/cloudflare-workers-shim.ts',
+    },
+  },
 };
 
 export default nextConfig;
