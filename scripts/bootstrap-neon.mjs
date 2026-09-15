@@ -60,6 +60,11 @@ function postgresCompatible(source) {
   statement = statement.replace(/`/g, '"');
   statement = statement.replace(/\bAUTOINCREMENT\b/gi, '');
 
+  // SQLite accepts text(N) as an affinity declaration. PostgreSQL does not
+  // allow a length modifier on TEXT, so preserve the intended maximum width as
+  // VARCHAR(N) where the generated D1 schema used text(N).
+  statement = statement.replace(/\btext\s*\(\s*(\d+)\s*\)/gi, 'varchar($1)');
+
   // D1 stores timestamps and booleans in INTEGER columns. BIGINT keeps
   // millisecond timestamps safe in Postgres, while 0/1 preserves the existing
   // application representation for boolean-like values.
