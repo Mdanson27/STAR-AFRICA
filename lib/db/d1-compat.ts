@@ -17,6 +17,8 @@ type AllResult<T> = {
   meta: Record<string, unknown>;
 };
 
+type NeonField = { name?: string; dataTypeID?: number };
+
 function getDatabaseUrl() {
   const value = process.env.DATABASE_URL;
   if (!value) {
@@ -87,13 +89,19 @@ function postgresSql(source: string) {
   return output;
 }
 
-function normalizeRow(row: Row) {
-  return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => {
-      if (typeof value === 'bigint') return [key, Number(value)];
-      return [key, value];
-    }),
-  ) as Row;
+function normalizeInteger(value: unknown, field?: NeonField) {
+  // PostgreSQL int8 values are commonly returned as strings. D1 returned its
+  // INTEGER columns as JavaScript numbers, so restore that behaviour only for
+  // actual int8 fields. TEXT money columns intentionally stay strings.
+  if (field?.dataTypeID === 20 && typeof value === 'string') {
+    const numeric = Number(value);
+    if (Number.isSafeInteger(numeric)) return numeric;
+  }
+  if (typeof value === 'bigint') {
+    const numeric = Number(value);
+    if (Number.isSafeInteger(numeric)) return numeric;
+  }
+  return value;
 }
 
 class NeonPreparedStatement {
@@ -111,11 +119,23 @@ class NeonPreparedStatement {
 
   private async execute<T extends Row = Row>() {
     const client = neon(getDatabaseUrl());
-    const rows = await client.query(
+    const result = await client.query(
       postgresSql(this.sqlText),
       normalizeParams(this.params),
+      { arrayMode: true, fullResults: true },
     );
-    return (rows as Row[]).map(normalizeRow) as T[];
+    const fields = (result.fields ?? []) as NeonField[];
+    const rows = (result.rows ?? []) as unknown[][];
+
+    return rows.map((row) => {
+      const record: Row = {};
+      for (let index = 0; index < row.length; index += 1) {
+        const field = fields[index];
+        const name = field?.name ?? String(index);
+        record[name] = normalizeInteger(row[index], field);
+      }
+      return record as T;
+    });
   }
 
   async first<T extends Row = Row>(): Promise<T | null> {
