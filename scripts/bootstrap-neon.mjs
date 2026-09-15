@@ -21,6 +21,50 @@ const client = new Client({
       : { rejectUnauthorized: false },
 });
 
+function splitSqlStatements(source) {
+  const statements = [];
+  let current = '';
+  let single = false;
+  let double = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (char === "'" && !double) {
+      if (single && source[index + 1] === "'") {
+        current += "''";
+        index += 1;
+        continue;
+      }
+      single = !single;
+      current += char;
+      continue;
+    }
+
+    if (char === '"' && !single) {
+      if (double && source[index + 1] === '"') {
+        current += '""';
+        index += 1;
+        continue;
+      }
+      double = !double;
+      current += char;
+      continue;
+    }
+
+    if (char === ';' && !single && !double) {
+      if (current.trim()) statements.push(`${current.trim()};`);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}
+
 function stripForeignKeyLines(statement) {
   if (!/^CREATE\s+TABLE/i.test(statement)) return statement;
 
@@ -189,6 +233,7 @@ async function applyMigration(name, source) {
 
   const statements = source
     .split('--> statement-breakpoint')
+    .flatMap(splitSqlStatements)
     .map(postgresCompatible)
     .filter(Boolean);
 
