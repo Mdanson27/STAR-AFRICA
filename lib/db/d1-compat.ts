@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import { getStore } from '@netlify/blobs';
 
 type Row = Record<string, unknown>;
 type RunResult = {
@@ -35,21 +36,25 @@ function normalizeParams(values: unknown[]) {
   });
 }
 
-/**
- * Convert D1/SQLite positional placeholders to PostgreSQL placeholders without
- * touching question marks that appear inside quoted SQL strings.
- */
-function postgresPlaceholders(source: string) {
+function postgresSql(source: string) {
+  let statement = source.trim();
+  const insertOrIgnore = /^INSERT\s+OR\s+IGNORE\s+INTO\b/i.test(statement);
+  if (insertOrIgnore) {
+    statement = statement.replace(/^INSERT\s+OR\s+IGNORE\s+INTO\b/i, 'INSERT INTO');
+    statement = statement.replace(/;\s*$/, '');
+    statement += ' ON CONFLICT DO NOTHING';
+  }
+
   let index = 0;
   let singleQuoted = false;
   let doubleQuoted = false;
   let output = '';
 
-  for (let i = 0; i < source.length; i += 1) {
-    const char = source[i];
+  for (let i = 0; i < statement.length; i += 1) {
+    const char = statement[i];
 
     if (char === "'" && !doubleQuoted) {
-      if (singleQuoted && source[i + 1] === "'") {
+      if (singleQuoted && statement[i + 1] === "'") {
         output += "''";
         i += 1;
         continue;
@@ -60,7 +65,7 @@ function postgresPlaceholders(source: string) {
     }
 
     if (char === '"' && !singleQuoted) {
-      if (doubleQuoted && source[i + 1] === '"') {
+      if (doubleQuoted && statement[i + 1] === '"') {
         output += '""';
         i += 1;
         continue;
@@ -107,7 +112,7 @@ class NeonPreparedStatement {
   private async execute<T extends Row = Row>() {
     const client = neon(getDatabaseUrl());
     const rows = await client.query(
-      postgresPlaceholders(this.sqlText),
+      postgresSql(this.sqlText),
       normalizeParams(this.params),
     );
     return (rows as Row[]).map(normalizeRow) as T[];
@@ -126,7 +131,7 @@ class NeonPreparedStatement {
   async run(): Promise<RunResult> {
     const client = neon(getDatabaseUrl());
     const result = await client.query(
-      postgresPlaceholders(this.sqlText),
+      postgresSql(this.sqlText),
       normalizeParams(this.params),
       { fullResults: true },
     );
@@ -142,7 +147,7 @@ class NeonPreparedStatement {
   async raw<T extends unknown[] = unknown[]>(): Promise<T[]> {
     const client = neon(getDatabaseUrl());
     const result = await client.query(
-      postgresPlaceholders(this.sqlText),
+      postgresSql(this.sqlText),
       normalizeParams(this.params),
       { arrayMode: true },
     );
@@ -164,13 +169,30 @@ class NeonD1Database {
   }
 }
 
+const filesStore = getStore('star-africa-documents');
+
+const files = {
+  async put(
+    key: string,
+    value: ArrayBuffer | Blob | string,
+    _options?: unknown,
+  ) {
+    await filesStore.set(key, value);
+  },
+  async get(key: string) {
+    return filesStore.get(key, { type: 'arrayBuffer' });
+  },
+  async delete(key: string) {
+    await filesStore.delete(key);
+  },
+};
+
 /**
- * Compatibility export for code that previously used
- * `import { env } from 'cloudflare:workers'` and `env.DB`.
- *
- * This keeps the existing application routes stable while Netlify Functions use
- * Neon Postgres for persistence.
+ * Compatibility export for code that previously used Cloudflare bindings.
+ * Netlify now provides the runtime while Neon supplies relational storage and
+ * Netlify Blobs supplies file/object storage.
  */
 export const env = {
   DB: new NeonD1Database(),
+  FILES: files,
 };
