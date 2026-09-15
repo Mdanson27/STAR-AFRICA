@@ -59,15 +59,7 @@ function postgresCompatible(source) {
   statement = addConflictIgnore(statement);
   statement = statement.replace(/`/g, '"');
   statement = statement.replace(/\bAUTOINCREMENT\b/gi, '');
-
-  // SQLite accepts text(N) as an affinity declaration. PostgreSQL does not
-  // allow a length modifier on TEXT, so preserve the intended maximum width as
-  // VARCHAR(N) where the generated D1 schema used text(N).
   statement = statement.replace(/\btext\s*\(\s*(\d+)\s*\)/gi, 'varchar($1)');
-
-  // D1 stores timestamps and booleans in INTEGER columns. BIGINT keeps
-  // millisecond timestamps safe in Postgres, while 0/1 preserves the existing
-  // application representation for boolean-like values.
   statement = statement.replace(/\bDEFAULT\s+true\b/gi, 'DEFAULT 1');
   statement = statement.replace(/\bDEFAULT\s+false\b/gi, 'DEFAULT 0');
   statement = statement.replace(/\binteger\b/gi, 'bigint');
@@ -110,6 +102,77 @@ function postgresCompatible(source) {
   return statement;
 }
 
+function splitSqlList(value) {
+  const parts = [];
+  let current = '';
+  let depth = 0;
+  let single = false;
+  let double = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "'" && !double) {
+      if (single && value[index + 1] === "'") {
+        current += "''";
+        index += 1;
+        continue;
+      }
+      single = !single;
+    } else if (char === '"' && !single) {
+      double = !double;
+    } else if (!single && !double) {
+      if (char === '(') depth += 1;
+      if (char === ')') depth -= 1;
+      if (char === ',' && depth === 0) {
+        parts.push(current.trim());
+        current = '';
+        continue;
+      }
+    }
+    current += char;
+  }
+
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+async function adaptSqliteRebuildCopy(statement) {
+  const match = statement.match(
+    /^INSERT\s+INTO\s+"(__new_[^"]+)"\s*\(([^]+?)\)\s+SELECT\s+([^]+?)\s+FROM\s+"([^"]+)"\s*;?$/i,
+  );
+  if (!match) return statement;
+
+  const [, targetTable, targetList, selectList, sourceTable] = match;
+  const sourceColumnsResult = await client.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [sourceTable],
+  );
+  const sourceColumns = new Set(
+    sourceColumnsResult.rows.map((row) => row.column_name),
+  );
+
+  const targets = splitSqlList(targetList);
+  const expressions = splitSqlList(selectList);
+  if (targets.length !== expressions.length) return statement;
+
+  let changed = false;
+  const adaptedExpressions = expressions.map((expression) => {
+    const simpleColumn = expression.match(/^"([^"]+)"$/);
+    if (simpleColumn && !sourceColumns.has(simpleColumn[1])) {
+      changed = true;
+      console.log(
+        `[Star Africa] SQLite rebuild: ${sourceTable}.${simpleColumn[1]} did not exist yet; using NULL while copying into ${targetTable}.`,
+      );
+      return 'NULL';
+    }
+    return expression;
+  });
+
+  if (!changed) return statement;
+  return `INSERT INTO "${targetTable}"(${targets.join(', ')}) SELECT ${adaptedExpressions.join(', ')} FROM "${sourceTable}";`;
+}
+
 async function migrationApplied(name) {
   const result = await client.query(
     'SELECT name FROM "_star_africa_migrations" WHERE name = $1 LIMIT 1',
@@ -135,7 +198,8 @@ async function applyMigration(name, source) {
 
   await client.query('BEGIN');
   try {
-    for (const statement of statements) {
+    for (const originalStatement of statements) {
+      const statement = await adaptSqliteRebuildCopy(originalStatement);
       try {
         await client.query(statement);
       } catch (error) {
