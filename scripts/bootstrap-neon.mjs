@@ -107,6 +107,10 @@ function postgresCompatible(source) {
   statement = statement.replace(/\bDEFAULT\s+true\b/gi, 'DEFAULT 1');
   statement = statement.replace(/\bDEFAULT\s+false\b/gi, 'DEFAULT 0');
   statement = statement.replace(/\binteger\b/gi, 'bigint');
+  statement = statement.replace(
+    /\bjson_object\s*\(\s*'([^']+)'\s*,\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\)/gi,
+    (_match, key, value) => `json_build_object('${key}', ${value})::text`,
+  );
 
   statement = statement.replace(
     /^CREATE\s+UNIQUE\s+INDEX\s+(?!IF\s+NOT\s+EXISTS)/i,
