@@ -1,25 +1,71 @@
-import { env } from 'cloudflare:workers';
+import { getDeployStore, getStore } from '@netlify/blobs';
+
+export interface StoredFileObject {
+  arrayBuffer(): Promise<ArrayBuffer>;
+  body: ReadableStream<Uint8Array> | null;
+  httpMetadata?: { contentType?: string };
+  customMetadata?: Record<string, string>;
+}
 
 export interface FileStorageProvider {
   readonly name: string;
-  put(input: { key: string; bytes: ArrayBuffer; contentType: string; metadata?: Record<string, string> }): Promise<void>;
-  get(key: string): Promise<R2ObjectBody | null>;
+  put(input: {
+    key: string;
+    bytes: ArrayBuffer;
+    contentType: string;
+    metadata?: Record<string, string>;
+  }): Promise<void>;
+  get(key: string): Promise<StoredFileObject | null>;
   delete(key: string): Promise<void>;
 }
 
-class R2FileStorageProvider implements FileStorageProvider {
-  readonly name = 'Cloudflare R2 private object storage';
-  private bucket() {
-    if (!env.FILES) throw new Error('Private file storage is not configured.');
-    return env.FILES;
+function documentsStore() {
+  const storeName = 'star-africa-documents';
+  if (process.env.CONTEXT === 'production') {
+    return getStore(storeName, { consistency: 'strong' });
   }
-  async put(input: { key: string; bytes: ArrayBuffer; contentType: string; metadata?: Record<string, string> }) {
-    await this.bucket().put(input.key, input.bytes, { httpMetadata: { contentType: input.contentType }, customMetadata: input.metadata });
+  return getDeployStore(storeName);
+}
+
+class NetlifyBlobFileStorageProvider implements FileStorageProvider {
+  readonly name = 'Netlify Blobs private document storage';
+
+  async put(input: {
+    key: string;
+    bytes: ArrayBuffer;
+    contentType: string;
+    metadata?: Record<string, string>;
+  }) {
+    await documentsStore().set(input.key, input.bytes, {
+      metadata: {
+        contentType: input.contentType,
+        ...(input.metadata ?? {}),
+      },
+    });
   }
-  get(key: string) { return this.bucket().get(key); }
-  async delete(key: string) { await this.bucket().delete(key); }
+
+  async get(key: string): Promise<StoredFileObject | null> {
+    const result = await documentsStore().getWithMetadata(key, {
+      type: 'arrayBuffer',
+    });
+    if (!result?.data) return null;
+    const bytes = result.data as ArrayBuffer;
+    const metadata = (result.metadata ?? {}) as Record<string, string>;
+    return {
+      async arrayBuffer() {
+        return bytes;
+      },
+      body: new Blob([bytes]).stream(),
+      httpMetadata: { contentType: metadata.contentType },
+      customMetadata: metadata,
+    };
+  }
+
+  async delete(key: string) {
+    await documentsStore().delete(key);
+  }
 }
 
 export function getFileStorageProvider(): FileStorageProvider {
-  return new R2FileStorageProvider();
+  return new NetlifyBlobFileStorageProvider();
 }
