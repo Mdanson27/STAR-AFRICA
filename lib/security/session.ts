@@ -75,13 +75,38 @@ export async function getSession(): Promise<AppSession | null> {
     const account = findDemoAccount(parsed.email);
     if (!account || account.id !== parsed.userId) return null;
     try {
-      const rows=await getDb().select({employeeId:employees.id,position:positions.name,role:roles.name,permission:permissions.code})
-        .from(users).innerJoin(employees,eq(employees.userId,users.id)).innerJoin(positions,eq(employees.positionId,positions.id))
-        .innerJoin(roles,eq(positions.roleId,roles.id)).leftJoin(rolePermissions,eq(rolePermissions.roleId,roles.id))
-        .leftJoin(permissions,eq(rolePermissions.permissionId,permissions.id)).where(eq(users.id,parsed.userId));
-      if(rows.length){const role=rows[0].role as DemoRole;return {...account,userId:account.id,employeeId:rows[0].employeeId,position:rows[0].position,role,expiresAt:parsed.expiresAt,permissions:role==='SUPER_ADMIN'?['*']:rows.flatMap((row)=>row.permission?[row.permission]:[])};}
+      const rows = await getDb()
+        .select({ employeeId: employees.id, position: positions.name, role: roles.name, permission: permissions.code })
+        .from(users)
+        .innerJoin(employees, eq(employees.userId, users.id))
+        .innerJoin(positions, eq(employees.positionId, positions.id))
+        .innerJoin(roles, eq(positions.roleId, roles.id))
+        .leftJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
+        .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(eq(users.id, parsed.userId));
+
+      if (rows.length) {
+        const role = rows[0].role as DemoRole;
+        const persisted = rows.flatMap((row) => (row.permission ? [row.permission] : []));
+        const baseline = defaultRolePermissions[role] ?? [];
+        const granted = role === 'SUPER_ADMIN'
+          ? ['*']
+          : Array.from(new Set([...baseline, ...persisted]));
+
+        return {
+          ...account,
+          userId: account.id,
+          employeeId: rows[0].employeeId,
+          position: rows[0].position,
+          role,
+          expiresAt: parsed.expiresAt,
+          permissions: granted,
+        };
+      }
     } catch {
-      // Development demo fallback: the server-owned directory is authoritative until D1 migrations are applied.
+      // Keep the server-owned demo permission baseline available if the database
+      // is temporarily unavailable. Persisted grants enhance the baseline; they
+      // must never accidentally strip a role of its authored demo capabilities.
     }
     return { ...account, userId: account.id, expiresAt: parsed.expiresAt, permissions: defaultRolePermissions[account.role] ?? [] };
   } catch {
