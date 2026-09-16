@@ -38,9 +38,10 @@ type ShellUser = {
   position: string;
   permissions: readonly string[];
 };
+
 const quickCreate = [
   {
-    label: "New bid",
+    label: "New bid opportunity",
     href: "/bids/opportunities/new",
     permission: "bids.create",
   },
@@ -50,15 +51,33 @@ const quickCreate = [
     permission: "projects.create",
   },
   {
+    label: "New customer",
+    href: "/customers/new",
+    permission: "customers.create",
+  },
+  {
     label: "New procurement request",
     href: "/procurement",
     permission: "procurement.create",
   },
-  { label: "New invoice", href: "/invoices", permission: "invoices.create" },
-  { label: "Record payment", href: "/payments", permission: "payments.create" },
+  {
+    label: "New invoice",
+    href: "/invoices",
+    permission: "invoices.create",
+  },
+  {
+    label: "Record payment",
+    href: "/payments",
+    permission: "payments.create",
+  },
   {
     label: "Upload document",
-    href: "/documents",
+    href: "/documents/upload",
+    permission: "documents.upload",
+  },
+  {
+    label: "Scan receipt",
+    href: "/documents/scan",
     permission: "documents.upload",
   },
 ];
