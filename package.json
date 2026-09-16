@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/bootstrap-neon.mjs && next build",
+    "build": "node scripts/bootstrap-netlify.mjs && next build",
     "start": "next start",
     "netlify:dev": "netlify dev",
     "lint": "oxlint",
@@ -15,7 +15,7 @@
     "test": "vitest run --config vitest.config.ts",
     "format": "oxfmt",
     "db:generate": "drizzle-kit generate",
-    "db:bootstrap": "node scripts/bootstrap-neon.mjs"
+    "db:bootstrap": "node scripts/bootstrap-netlify.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
