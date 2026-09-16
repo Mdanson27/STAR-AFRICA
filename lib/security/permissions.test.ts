@@ -16,6 +16,18 @@ describe('server-side permission rules', () => {
     expect(hasPermission(defaultRolePermissions.FINANCE_ADMIN, 'bids.expenses.approve')).toBe(true);
     expect(hasPermission(defaultRolePermissions.ACCOUNTANT, 'bids.submit')).toBe(false);
   });
+  it('gives directors operational create rights used by Quick Create', () => {
+    const grants = defaultRolePermissions.DIRECTOR;
+    for (const permission of [
+      'bids.create',
+      'projects.create',
+      'procurement.create',
+      'customers.create',
+      'invoices.create',
+      'payments.create',
+      'documents.upload',
+    ]) expect(hasPermission(grants, permission)).toBe(true);
+  });
   it('gives directors full project operations and every operational module view', () => {
     const grants = defaultRolePermissions.DIRECTOR;
     for (const permission of [
