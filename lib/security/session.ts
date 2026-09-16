@@ -76,7 +76,7 @@ export async function getSession(): Promise<AppSession | null> {
     if (!account || account.id !== parsed.userId) return null;
     try {
       const rows = await getDb()
-        .select({ employeeId: employees.id, position: positions.name, role: roles.name, permission: permissions.code })
+        .select({ employeeId: employees.id, position: positions.name, permission: permissions.code })
         .from(users)
         .innerJoin(employees, eq(employees.userId, users.id))
         .innerJoin(positions, eq(employees.positionId, positions.id))
@@ -86,7 +86,11 @@ export async function getSession(): Promise<AppSession | null> {
         .where(eq(users.id, parsed.userId));
 
       if (rows.length) {
-        const role = rows[0].role as DemoRole;
+        // Database role names are presentation labels (for example "FINANCE ADMIN"
+        // or "BIDS & TENDERS OFFICER"), while application permissions use stable
+        // demo role keys. The authenticated demo account is therefore the role-key
+        // authority and database grants are merged into that authored baseline.
+        const role = account.role;
         const persisted = rows.flatMap((row) => (row.permission ? [row.permission] : []));
         const baseline = defaultRolePermissions[role] ?? [];
         const granted = role === 'SUPER_ADMIN'
