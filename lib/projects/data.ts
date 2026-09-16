@@ -54,6 +54,7 @@ const projectSelection = {
   completionBasisPoints: projects.completionBasisPoints,
   projectManager: users.displayName,
 };
+
 type ProjectRow = {
   id: string;
   code: string;
@@ -76,6 +77,7 @@ type ProjectRow = {
   completionBasisPoints: number;
   projectManager: string | null;
 };
+
 const normalize = (row: ProjectRow, actualMinor = '0'): ProjectRecord => ({
   ...row,
   category: row.category ?? 'General',
@@ -89,6 +91,7 @@ const normalize = (row: ProjectRow, actualMinor = '0'): ProjectRecord => ({
   plannedCompletionAt:
     row.plannedCompletionAt?.toISOString().slice(0, 10) ?? '',
 });
+
 const detailText = (value: string | null, key: string) => {
   try {
     const parsed = JSON.parse(value ?? '{}') as Record<string, unknown>;
@@ -97,6 +100,32 @@ const detailText = (value: string | null, key: string) => {
     return '';
   }
 };
+
+const demoProjectDetail = (project: ProjectRecord) => ({
+  project,
+  tasks: [],
+  milestones: [],
+  updates: [],
+  materials: [],
+  materialUsage: [],
+  expenses: [],
+  risks: [],
+  issues: [],
+  variations: [],
+  budget: [],
+  activity: [],
+  progress: [],
+  workPlan: [],
+  team: [],
+  labour: [],
+  equipment: [],
+  certificates: [],
+  invoices: [],
+  payments: [],
+  retentions: [],
+  documents: [],
+  procurement: [],
+});
 
 export async function loadProjects(): Promise<ProjectRecord[]> {
   try {
@@ -135,7 +164,13 @@ export async function loadProject(id: string) {
       .leftJoin(users, eq(projects.projectManagerId, users.id))
       .where(eq(projects.id, id))
       .limit(1);
-    if (!row) return null;
+
+    // The portfolio deliberately falls back to seeded demonstration projects
+    // when the live project register is empty. Those links must remain valid on
+    // the detail route as well, even when Neon itself is healthy but has no row
+    // with the demonstration id.
+    if (!row) return fallback ? demoProjectDetail(fallback) : null;
+
     const [actualRow] = await db
       .select({
         total: sql<string>`coalesce(sum(cast(${projectExpenses.totalMinor} as integer)),0)`,
@@ -285,32 +320,6 @@ export async function loadProject(id: string) {
       procurement: [...procurement, ...purchaseOrdersForProject],
     };
   } catch {
-    return fallback
-      ? {
-          project: fallback,
-          tasks: [],
-          milestones: [],
-          updates: [],
-          materials: [],
-          materialUsage: [],
-          expenses: [],
-          risks: [],
-          issues: [],
-          variations: [],
-          budget: [],
-          activity: [],
-          progress: [],
-          workPlan: [],
-          team: [],
-          labour: [],
-          equipment: [],
-          certificates: [],
-          invoices: [],
-          payments: [],
-          retentions: [],
-          documents: [],
-          procurement: [],
-        }
-      : null;
+    return fallback ? demoProjectDetail(fallback) : null;
   }
 }
