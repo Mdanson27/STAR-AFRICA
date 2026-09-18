@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
+import { guardApi } from '@/lib/security/api-guard';
+import { requestContext } from '@/lib/security/production-auth';
 import { moneyInputToMinor } from '@/lib/customers/domain';
 
 type CustomerInput = Record<string, unknown> & {
@@ -22,17 +22,15 @@ const date = (value: unknown) => {
 };
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: 'Sign in is required.' },
-      { status: 401 },
-    );
-  if (!hasPermission(session.permissions, 'customers.create'))
-    return NextResponse.json(
-      { error: 'You do not have permission to create customers.' },
-      { status: 403 },
-    );
+  const guard = await guardApi(request, {
+    permission: 'customers.create',
+    action: 'customers.create',
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
+  const security = requestContext(request);
   const body = (await request.json()) as CustomerInput;
   const name = text(body.name);
   if (!name)
@@ -132,7 +130,7 @@ export async function POST(request: Request) {
         now,
       ),
       env.DB.prepare(
-        'INSERT INTO audit_logs (id,company_id,user_id,action,entity_type,entity_id,new_value_json,occurred_at) VALUES (?,?,?,?,?,?,?,?)',
+        'INSERT INTO audit_logs (id,company_id,user_id,action,entity_type,entity_id,new_value_json,request_id,ip_hash,occurred_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
       ).bind(
         crypto.randomUUID(),
         'company-star-africa',
@@ -141,6 +139,8 @@ export async function POST(request: Request) {
         'customer',
         id,
         JSON.stringify({ code, name }),
+        security.requestId,
+        security.ipHash,
         now,
       ),
     ]);
