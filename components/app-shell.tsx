@@ -273,7 +273,7 @@ export function AppShell({
                     <UserRound />
                     My profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled>
+                  <DropdownMenuItem render={<Link href="/account/security" />}>
                     <KeyRound />
                     Change password
                   </DropdownMenuItem>
