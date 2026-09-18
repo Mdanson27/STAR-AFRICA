@@ -23,6 +23,9 @@ type Row = {
   retention_minor: string;
   overdue_minor: string;
   credit_limit_minor: string;
+  source_system: string | null;
+  source_ref: string | null;
+  source_imported_at: number | null;
 };
 type Data = {
   portfolio: Row[];
@@ -266,6 +269,11 @@ export function CustomersWorkspace({
                         <small>
                           {c.code} {c.tin ? `· TIN ${c.tin}` : ''}
                         </small>
+                        {c.source_system === 'QuickBooks' ? (
+                          <span className="quickbooks-source-badge">
+                            Imported from QuickBooks · Ref {c.source_ref}
+                          </span>
+                        ) : null}
                       </Link>
                     </td>
                     <td>{c.primary_contact || 'Not assigned'}</td>
