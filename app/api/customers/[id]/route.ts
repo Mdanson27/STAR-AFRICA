@@ -1,18 +1,12 @@
 import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
+import { guardApi } from '@/lib/security/api-guard';
+import { writeAuditLog } from '@/lib/security/production-auth';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: 'Sign in is required.' },
-      { status: 401 },
-    );
   const { id } = await params;
   const body = (await request.json()) as {
     action?: string;
@@ -23,6 +17,17 @@ export async function PATCH(
     phone?: string;
     notes?: string;
   };
+  const permission =
+    body.action === 'archive' ? 'customers.archive' : 'customers.edit';
+  const guard = await guardApi(request, {
+    permission,
+    action: body.action === 'archive' ? 'customers.archive' : 'customers.edit',
+    maxRequests: 40,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
+
   const existing = await env.DB.prepare(
     'SELECT id,name FROM customers WHERE id=? AND company_id=?',
   )
@@ -31,11 +36,6 @@ export async function PATCH(
   if (!existing)
     return NextResponse.json({ error: 'Customer not found.' }, { status: 404 });
   if (body.action === 'archive') {
-    if (!hasPermission(session.permissions, 'customers.archive'))
-      return NextResponse.json(
-        { error: 'You do not have permission to archive customers.' },
-        { status: 403 },
-      );
     const now = Date.now();
     await env.DB.batch([
       env.DB.prepare(
@@ -54,13 +54,18 @@ export async function PATCH(
         now,
       ),
     ]);
+    await writeAuditLog({
+      request,
+      userId: session.userId,
+      companyId: session.companyId,
+      action: 'customer.archived',
+      entityType: 'customer',
+      entityId: id,
+      oldValue: existing,
+      newValue: { status: 'archived' },
+    });
     return NextResponse.json({ archived: true });
   }
-  if (!hasPermission(session.permissions, 'customers.edit'))
-    return NextResponse.json(
-      { error: 'You do not have permission to edit customers.' },
-      { status: 403 },
-    );
   const now = Date.now();
   await env.DB.batch([
     env.DB.prepare(
@@ -88,5 +93,15 @@ export async function PATCH(
       now,
     ),
   ]);
+  await writeAuditLog({
+    request,
+    userId: session.userId,
+    companyId: session.companyId,
+    action: 'customer.updated',
+    entityType: 'customer',
+    entityId: id,
+    oldValue: existing,
+    newValue: body,
+  });
   return NextResponse.json({ updated: true });
 }

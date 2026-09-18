@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
-import { likelyDuplicate } from '@/lib/bids/domain';
-import { demoBids } from '@/lib/bids/demo-data';
+import { guardApi } from '@/lib/security/api-guard';
 import { getDb } from '@/db';
 import { auditLogs, bids } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
@@ -23,17 +20,15 @@ const opportunitySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: 'Authentication required.' },
-      { status: 401 },
-    );
-  if (!hasPermission(session.permissions, 'bids.create'))
-    return NextResponse.json(
-      { error: 'You do not have permission to perform this action.' },
-      { status: 403 },
-    );
+  const guard = await guardApi(request, {
+    permission: 'bids.create',
+    action: 'bids.create',
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
+
   const parsed = opportunitySchema.safeParse(
     await request.json().catch(() => null),
   );
@@ -43,28 +38,6 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   const data = parsed.data;
-  const duplicate = likelyDuplicate(
-    {
-      reference: data.reference,
-      organization: data.organization,
-      title: data.title,
-      deadline: data.deadline.slice(0, 10),
-    },
-    demoBids.map((bid) => ({
-      reference: bid.reference,
-      organization: bid.organization,
-      title: bid.title,
-      deadline: bid.deadline.slice(0, 10),
-    })),
-  );
-  if (duplicate)
-    return NextResponse.json(
-      {
-        error: 'A likely duplicate opportunity already exists.',
-        duplicate: { reference: duplicate.reference },
-      },
-      { status: 409 },
-    );
   const now = new Date();
   const id = `bid-${crypto.randomUUID()}`;
   const estimatedValueMinor = BigInt(

@@ -13,8 +13,7 @@ import {
   projectStages,
   users,
 } from '@/db/schema';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
+import { guardApi } from '@/lib/security/api-guard';
 
 const schema = z.object({
   code: z.string().trim().min(3).max(40),
@@ -34,24 +33,22 @@ const schema = z.object({
   retentionPercent: z.coerce.number().min(0).max(100).default(5),
   advancePercent: z.coerce.number().min(0).max(100).default(0),
   defectsLiabilityMonths: z.coerce.number().int().min(0).max(120).default(6),
-  projectManagerId: z.string().default('user-projects'),
-  siteManagerId: z.string().default('user-site'),
+  projectManagerId: z.string().trim().min(1),
+  siteManagerId: z.string().trim().min(1),
   budget: z.record(z.string(), z.coerce.number().nonnegative()).default({}),
 });
 const minor = (value: number) => BigInt(Math.round(value * 100)).toString();
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: 'Authentication required.' },
-      { status: 401 },
-    );
-  if (!hasPermission(session.permissions, 'projects.create'))
-    return NextResponse.json(
-      { error: 'Your registered position cannot create projects.' },
-      { status: 403 },
-    );
+  const guard = await guardApi(request, {
+    permission: 'projects.create',
+    action: 'projects.create',
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
+
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json(

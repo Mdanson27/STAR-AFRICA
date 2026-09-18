@@ -20,6 +20,8 @@ export const navigationItems:NavigationItem[] = [
   {label:'Reports',href:'/reports',permission:'reports.view',icon:Activity},
   {label:'Calendar',href:'/calendar',permission:'calendar.view',icon:CalendarDays},
   {label:'Administration',href:'/administration',permission:'administration.view',icon:ShieldCheck,system:true},
+  {label:'Security & audit',href:'/administration/security',permission:'administration.view',icon:ShieldCheck,system:true},
+  {label:'Data imports',href:'/administration/data-imports',permission:'administration.view',icon:ShieldCheck,system:true},
   {label:'Settings',href:'/settings',permission:'settings.view',icon:Settings,system:true},
 ];
 

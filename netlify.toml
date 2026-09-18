@@ -3,7 +3,6 @@
 
 [build.environment]
   NODE_VERSION = "22.13.0"
-  STAR_AFRICA_DEMO_MODE = "true"
 
 [functions]
   node_bundler = "esbuild"
@@ -13,4 +12,19 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    X-Frame-Options = "SAMEORIGIN"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=(), payment=(), usb=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Resource-Policy = "same-origin"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"
+    Pragma = "no-cache"
+
+[[headers]]
+  for = "/login"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"

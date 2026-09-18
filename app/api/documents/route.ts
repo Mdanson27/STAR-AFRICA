@@ -2,17 +2,22 @@ import { NextResponse } from 'next/server';
 import { and, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { documentLinks, documents } from '@/db/schema';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
+import { guardApi } from '@/lib/security/api-guard';
 import { getFileStorageProvider } from '@/lib/documents/storage';
 import { documentCategories } from '@/lib/documents/types';
 import { sanitizeFilename, sha256Hex, validateDocumentFile } from '@/lib/documents/validation';
 import { makeInternalNumber, writeDocumentAudit } from '@/lib/documents/server';
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sign in is required.' }, { status: 401 });
-  if (!hasPermission(session.permissions, 'documents.upload')) return NextResponse.json({ error: 'You do not have permission to upload documents.' }, { status: 403 });
+  const guard = await guardApi(request, {
+    permission: 'documents.upload',
+    action: 'documents.upload',
+    maxRequests: 20,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
   try {
     const form = await request.formData();
     const file = form.get('file');

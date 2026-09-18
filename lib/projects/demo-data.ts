@@ -1,10 +1,12 @@
-export type ProjectRecord={id:string;code:string;name:string;client:string;category:string;description:string;location:string;priority:string;currency:string;contractValueMinor:string;budgetMinor:string;committedMinor:string;actualMinor:string;retentionBasisPoints:number;startsAt:string;plannedCompletionAt:string;stage:string;status:string;health:string;completionBasisPoints:number;projectManager:string;siteManager:string;};
-export const projectStages=['Awarded','Contract Setup','Site Handover','Mobilization','Materials Procurement','Work Started','In Progress','Testing','Practical Completion','Retention Period','Completed','Closed'];
-export const demoProjects:ProjectRecord[]=[
-  {id:'project-moh-labs',code:'SA-PRJ-024',name:'Regional Laboratory Equipment Installation',client:'Ministry of Health',category:'Laboratory equipment',description:'Supply, install, commission and hand over laboratory equipment across regional referral hospitals.',location:'Kampala & regional hospitals',priority:'high',currency:'UGX',contractValueMinor:'286000000000',budgetMinor:'224000000000',committedMinor:'164500000000',actualMinor:'142800000000',retentionBasisPoints:500,startsAt:'2026-04-08',plannedCompletionAt:'2026-12-18',stage:'In Progress',status:'active',health:'on_track',completionBasisPoints:6800,projectManager:'Daniel Okello',siteManager:'Moses Kato'},
-  {id:'project-gulu-market',code:'SA-PRJ-021',name:'Gulu Municipal Market Rehabilitation',client:'Gulu City Council',category:'Construction',description:'Structural, roofing, drainage and safety rehabilitation works for the municipal market.',location:'Gulu',priority:'critical',currency:'UGX',contractValueMinor:'184500000000',budgetMinor:'151000000000',committedMinor:'126000000000',actualMinor:'118400000000',retentionBasisPoints:500,startsAt:'2026-02-12',plannedCompletionAt:'2026-10-14',stage:'In Progress',status:'active',health:'at_risk',completionBasisPoints:8200,projectManager:'Daniel Okello',siteManager:'Moses Kato'},
-  {id:'project-jms-stores',code:'SA-PRJ-027',name:'Entebbe Medical Stores Supply',client:'Joint Medical Store',category:'Medical supplies',description:'Supply and staged delivery of essential medical stores and handling equipment.',location:'Entebbe',priority:'medium',currency:'UGX',contractValueMinor:'118200000000',budgetMinor:'96500000000',committedMinor:'72100000000',actualMinor:'44800000000',retentionBasisPoints:500,startsAt:'2026-07-01',plannedCompletionAt:'2027-01-20',stage:'Materials Procurement',status:'active',health:'on_track',completionBasisPoints:3400,projectManager:'Daniel Okello',siteManager:'Moses Kato'},
-  {id:'project-wakiso-school',code:'SA-PRJ-019',name:'Wakiso Classroom Block',client:'Wakiso District Local Government',category:'Construction',description:'Completed classroom block now monitored through the retention and defects period.',location:'Wakiso',priority:'low',currency:'UGX',contractValueMinor:'94000000000',budgetMinor:'78400000000',committedMinor:'78000000000',actualMinor:'77600000000',retentionBasisPoints:500,startsAt:'2025-08-05',plannedCompletionAt:'2026-06-30',stage:'Retention Period',status:'retention',health:'completed',completionBasisPoints:10000,projectManager:'Daniel Okello',siteManager:'Moses Kato'},
-];
-export const money=(minor:string,currency='UGX')=>`${currency} ${(Number(minor)/100/1_000_000).toLocaleString('en-UG',{maximumFractionDigits:1})}M`;
-export const healthLabel=(health:string)=>health.replaceAll('_',' ').replace(/\b\w/g,(m)=>m.toUpperCase());
+// Legacy compatibility module. Production V1 contains no seeded project records.
+// New code should import from ./types.
+export {
+  projectStages,
+  money,
+  healthLabel,
+  type ProjectRecord,
+} from './types';
+
+import type { ProjectRecord } from './types';
+
+export const demoProjects: ProjectRecord[] = [];

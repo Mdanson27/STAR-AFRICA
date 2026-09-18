@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
+import { guardApi } from '@/lib/security/api-guard';
 import { likelyDuplicate } from '@/lib/bids/domain';
-import { demoBids } from '@/lib/bids/demo-data';
 import { getDb } from '@/db';
 import { auditLogs, bidImportJobs, bids } from '@/db/schema';
 type Row = {
@@ -15,17 +13,16 @@ type Row = {
   currency: string;
 };
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: 'Authentication required.' },
-      { status: 401 },
-    );
-  if (!hasPermission(session.permissions, 'bids.create'))
-    return NextResponse.json(
-      { error: 'You do not have permission to perform this action.' },
-      { status: 403 },
-    );
+  const guard = await guardApi(request, {
+    permission: 'bids.create',
+    action: 'bids.import',
+    maxRequests: 8,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
+
   const body = (await request.json().catch(() => null)) as {
     filename?: string;
     rows?: Row[];
@@ -35,11 +32,22 @@ export async function POST(request: Request) {
       { error: 'No opportunity rows supplied.' },
       { status: 400 },
     );
-  const existing = demoBids.map((bid) => ({
+  const db = getDb();
+  const persistedBids = await db
+    .select({
+      reference: bids.reference,
+      organization: bids.organization,
+      title: bids.title,
+      closesAt: bids.closesAt,
+    })
+    .from(bids);
+  const existing = persistedBids.map((bid) => ({
     reference: bid.reference,
     organization: bid.organization,
     title: bid.title,
-    deadline: bid.deadline.slice(0, 10),
+    deadline: bid.closesAt instanceof Date
+      ? bid.closesAt.toISOString().slice(0, 10)
+      : new Date(bid.closesAt).toISOString().slice(0, 10),
   }));
   const accepted: Row[] = [];
   let duplicates = 0;
@@ -63,7 +71,6 @@ export async function POST(request: Request) {
   }
   const now = new Date();
   const jobId = `import-${crypto.randomUUID()}`;
-  const db = getDb();
   const bidStatements = accepted.map((row) =>
     db
       .insert(bids)

@@ -3,6 +3,7 @@ import { and, desc, eq, isNull, or, like } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { auditLogs, documentLinks, documents, ocrJobs, projects, receiptLineItems, receiptRecords, suppliers, users } from '@/db/schema';
 import { safeJson, type OcrExtraction } from './types';
+import { requestContext } from '@/lib/security/production-auth';
 
 export async function listDocuments(companyId: string, query = '') {
   const db = getDb();
@@ -63,11 +64,29 @@ export function makeInternalNumber(prefix: 'DOC' | 'REC', now = new Date()) {
   return `${prefix}-${year}-${suffix}`;
 }
 
-export async function writeDocumentAudit(input: { companyId: string; userId: string; action: string; documentId: string; oldValue?: unknown; newValue?: unknown }) {
+export async function writeDocumentAudit(input: {
+  companyId: string;
+  userId: string;
+  action: string;
+  documentId: string;
+  oldValue?: unknown;
+  newValue?: unknown;
+  request?: Request;
+}) {
+  const context = input.request ? requestContext(input.request) : null;
   await getDb().insert(auditLogs).values({
-    id: crypto.randomUUID(), companyId: input.companyId, userId: input.userId, action: input.action,
-    entityType: 'document', entityId: input.documentId,
-    oldValueJson: input.oldValue === undefined ? null : JSON.stringify(input.oldValue),
-    newValueJson: input.newValue === undefined ? null : JSON.stringify(input.newValue), occurredAt: new Date(),
+    id: crypto.randomUUID(),
+    companyId: input.companyId,
+    userId: input.userId,
+    action: input.action,
+    entityType: 'document',
+    entityId: input.documentId,
+    oldValueJson:
+      input.oldValue === undefined ? null : JSON.stringify(input.oldValue),
+    newValueJson:
+      input.newValue === undefined ? null : JSON.stringify(input.newValue),
+    requestId: context?.requestId ?? null,
+    ipHash: context?.ipHash ?? null,
+    occurredAt: new Date(),
   });
 }

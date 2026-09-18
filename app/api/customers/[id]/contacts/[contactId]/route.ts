@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
-import { hasPermission } from '@/lib/security/permissions';
-import { getSession } from '@/lib/security/session';
+import { guardApi } from '@/lib/security/api-guard';
+import { writeAuditLog } from '@/lib/security/production-auth';
 
 type Input = {
   action?: 'edit' | 'set_primary' | 'set_billing' | 'archive';
@@ -20,13 +20,17 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; contactId: string }> },
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sign in is required.' }, { status: 401 });
-  if (!hasPermission(session.permissions, 'customers.contacts.manage')) {
-    return NextResponse.json({ error: 'You do not have permission to manage customer contacts.' }, { status: 403 });
-  }
+  const guard = await guardApi(request, {
+    permission: 'customers.contacts.manage',
+    action: 'customers.contacts.manage',
+    maxRequests: 60,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
   const { id, contactId } = await params;
-  const body = (await request.json()) as Input;
+  const body = (await request.json().catch(() => null)) as Input | null;
+  if (!body) return NextResponse.json({ error: 'Invalid contact update.' }, { status: 400 });
   const contact = await env.DB.prepare(
     'SELECT * FROM customer_contacts WHERE id=? AND customer_id=?',
   )
@@ -46,6 +50,7 @@ export async function PATCH(
       env.DB.prepare("UPDATE customer_contacts SET primary_contact=1,status='active',archived_at=NULL,updated_at=? WHERE id=?").bind(now, contactId),
       activity('customer.contact.primary_changed', `${String(contact.name)} set as primary contact`),
     ]);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.contact.primary_changed', entityType: 'customer_contact', entityId: contactId, oldValue: contact, newValue: { primary: true } });
     return NextResponse.json({ updated: true });
   }
   if (body.action === 'set_billing') {
@@ -54,6 +59,7 @@ export async function PATCH(
       env.DB.prepare("UPDATE customer_contacts SET billing_contact=1,status='active',archived_at=NULL,updated_at=? WHERE id=?").bind(now, contactId),
       activity('customer.contact.billing_changed', `${String(contact.name)} set as billing contact`),
     ]);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.contact.billing_changed', entityType: 'customer_contact', entityId: contactId, oldValue: contact, newValue: { billing: true } });
     return NextResponse.json({ updated: true });
   }
   if (body.action === 'archive') {
@@ -61,6 +67,7 @@ export async function PATCH(
       env.DB.prepare("UPDATE customer_contacts SET status='archived',primary_contact=0,billing_contact=0,archived_at=?,updated_at=? WHERE id=?").bind(now, now, contactId),
       activity('customer.contact.archived', `${String(contact.name)} archived`),
     ]);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.contact.archived', entityType: 'customer_contact', entityId: contactId, oldValue: contact, newValue: { status: 'archived' } });
     return NextResponse.json({ archived: true });
   }
 
@@ -90,5 +97,6 @@ export async function PATCH(
     ),
     activity('customer.contact.updated', `${name} contact details updated`),
   ]);
+  await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.contact.updated', entityType: 'customer_contact', entityId: contactId, oldValue: contact, newValue: { name, email, phone, jobTitle: body.jobTitle, department: body.department, contactType: body.contactType } });
   return NextResponse.json({ updated: true });
 }

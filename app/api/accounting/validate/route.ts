@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getChatGPTUser } from '@/app/chatgpt-auth';
+import { guardApi } from '@/lib/security/api-guard';
 import { AccountingValidationError, validateJournal } from '@/lib/domain/accounting';
 
 const journalSchema = z.object({
@@ -8,8 +8,13 @@ const journalSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user && process.env.NODE_ENV === 'production') return Response.json({ error: 'Authentication required.' }, { status: 401 });
+  const guard = await guardApi(request, {
+    permission: 'finance.view',
+    action: 'accounting.validate',
+    maxRequests: 60,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
   const parsed = journalSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Invalid journal payload.', fields: z.treeifyError(parsed.error) }, { status: 400 });
   try {
