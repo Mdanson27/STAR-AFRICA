@@ -18,11 +18,14 @@ export type CustomerRegisterRow = {
   retention_minor: string;
   overdue_minor: string;
   credit_limit_minor: string;
+  source_system: string | null;
+  source_ref: string | null;
+  source_imported_at: number | null;
 };
 
 export async function listCustomerPortfolio() {
   const result =
-    await env.DB.prepare(`SELECT c.id,c.code,c.name,c.category,c.status,c.tin,c.email,c.phone,c.credit_limit_minor,
+    await env.DB.prepare(`SELECT c.id,c.code,c.name,c.category,c.status,c.tin,c.email,c.phone,c.credit_limit_minor,c.source_system,c.source_ref,c.source_imported_at,
     (SELECT cc.name FROM customer_contacts cc WHERE cc.customer_id=c.id AND cc.primary_contact=1 AND cc.archived_at IS NULL LIMIT 1) primary_contact,
     (SELECT COUNT(*) FROM projects p WHERE p.customer_id=c.id AND p.status='active' AND p.archived_at IS NULL) active_projects,
     COALESCE((SELECT CAST(SUM(CAST(i.total_minor AS INTEGER)) AS TEXT) FROM invoices i WHERE i.customer_id=c.id AND i.status!='draft'),'0') total_billed_minor,
