@@ -62,8 +62,7 @@ function cookieName() {
 function securitySalt() {
   const value =
     process.env.STAR_AFRICA_SECURITY_SECRET ||
-    process.env.SESSION_SECRET ||
-    process.env.DEMO_SESSION_SECRET;
+    process.env.SESSION_SECRET;
   if (!value && process.env.NODE_ENV === 'production') {
     throw new Error('STAR_AFRICA_SECURITY_SECRET is not configured.');
   }
