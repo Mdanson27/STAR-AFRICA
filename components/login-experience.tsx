@@ -4,37 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
-  CheckCircle2,
   Eye,
   EyeOff,
   LockKeyhole,
   ShieldCheck,
+  Activity,
 } from 'lucide-react';
 import { StarAfricaLogo } from './star-africa-logo';
 import { Button } from './ui/button';
-import { DEMO_PASSWORD, demoAccounts } from '@/lib/security/demo-accounts';
-
-const featuredRoles = [
-  'DIRECTOR',
-  'BIDS_OFFICER',
-  'PROJECT_MANAGER',
-  'SITE_MANAGER',
-  'AUDITOR',
-  'SUPER_ADMIN',
-] as const;
-const labels: Record<string, string> = {
-  BIDS_OFFICER: 'Bids Officer',
-  SITE_MANAGER: 'Site Manager',
-  AUDITOR: 'Auditor',
-  SUPER_ADMIN: 'Super Admin',
-  DIRECTOR: 'Director',
-  PROJECT_MANAGER: 'Project Manager',
-};
 
 export function LoginExperience({ returnTo }: { returnTo: string }) {
   const router = useRouter();
-  const [email, setEmail] = useState('director@starafrica.demo');
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -42,29 +24,31 @@ export function LoginExperience({ returnTo }: { returnTo: string }) {
 
   async function signIn(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError('');
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password, remember }),
-    });
-    const result = (await response.json()) as { error?: string; landingPath?:string };
-    if (!response.ok) {
-      setError(result.error ?? 'Unable to sign in.');
-      setBusy(false);
-      return;
-    }
-    router.push(result.landingPath ?? returnTo);
-    router.refresh();
-  }
 
-  function selectRole(role: string) {
-    const account = demoAccounts.find((item) => item.role === role);
-    if (!account) return;
-    setEmail(account.email);
-    setPassword(DEMO_PASSWORD);
-    setError('');
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password, remember }),
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        landingPath?: string;
+      };
+
+      if (!response.ok) {
+        setError(result.error ?? 'Unable to sign in.');
+        return;
+      }
+
+      router.push(result.landingPath ?? returnTo);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -74,41 +58,50 @@ export function LoginExperience({ returnTo }: { returnTo: string }) {
           <StarAfricaLogo size="medium" />
         </div>
         <div>
-          <p>STAR AFRICA OS</p>
-          <h1>Business Operations &amp; Financial Management</h1>
+          <p>STAR AFRICA OS · PRODUCTION V1</p>
+          <h1>Secure Business Operations &amp; Financial Management</h1>
           <span>
-            One accountable workspace for opportunity discovery, compliant
-            tender preparation, financial control, approvals and award.
+            One controlled workspace for bids, projects, customers, finance,
+            documents, procurement and management reporting.
           </span>
         </div>
         <ul>
           <li>
-            <ShieldCheck /> Server-enforced role permissions
+            <ShieldCheck /> Role-based access and protected records
           </li>
           <li>
-            <LockKeyhole /> Auditable decisions and records
+            <LockKeyhole /> Server-side sessions and account lockout protection
+          </li>
+          <li>
+            <Activity /> Security events and auditable system activity
           </li>
         </ul>
       </section>
+
       <section className="login-form-panel">
         <div className="login-card">
-          <p className="eyebrow">SECURE DEMO WORKSPACE</p>
+          <p className="eyebrow">SECURE SIGN IN</p>
           <h2>Welcome back</h2>
           <p>
-            Sign in with a documented demonstration account. These credentials
-            contain no real employee data.
+            Use your authorised Star Africa account. Sign-in attempts and
+            security-sensitive actions are monitored.
           </p>
+
           <form className="login-form" onSubmit={signIn}>
             <label>
-              <span>Email</span>
+              <span>Email address</span>
               <input
                 type="email"
                 autoComplete="username"
+                inputMode="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                placeholder="name@company.com"
                 required
+                autoFocus
               />
             </label>
+
             <label>
               <span>Password</span>
               <span className="password-field">
@@ -117,6 +110,7 @@ export function LoginExperience({ returnTo }: { returnTo: string }) {
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
                   required
                 />
                 <button
@@ -128,50 +122,37 @@ export function LoginExperience({ returnTo }: { returnTo: string }) {
                 </button>
               </span>
             </label>
+
             <label className="remember-field">
               <input
                 type="checkbox"
                 checked={remember}
                 onChange={(event) => setRemember(event.target.checked)}
               />
-              <span>Remember me for 7 days</span>
+              <span>Keep me signed in on this trusted device for 7 days</span>
             </label>
+
             {error ? (
-              <p className="login-error" role="alert">
+              <p className="login-error" role="alert" aria-live="polite">
                 {error}
               </p>
             ) : null}
+
             <Button size="lg" type="submit" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in'} {!busy ? <ArrowRight /> : null}
+              {busy ? 'Signing in securely…' : 'Sign in'}
+              {!busy ? <ArrowRight /> : null}
             </Button>
           </form>
-          <div className="demo-access">
+
+          <div className="production-login-note">
+            <ShieldCheck />
             <div>
-              <strong>Demo access</strong>
-              <span>Select a role to populate its credentials</span>
+              <strong>Production access</strong>
+              <span>
+                Accounts are individually assigned. Shared demonstration
+                credentials are disabled.
+              </span>
             </div>
-            <div className="demo-role-grid">
-              {featuredRoles.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => selectRole(role)}
-                  className={
-                    demoAccounts.find((item) => item.role === role)?.email ===
-                    email
-                      ? 'selected'
-                      : ''
-                  }
-                >
-                  <CheckCircle2 />
-                  <span>{labels[role]}</span>
-                </button>
-              ))}
-            </div>
-            <small>
-              Development/demo only · shared password:{' '}
-              <code>{DEMO_PASSWORD}</code>
-            </small>
           </div>
         </div>
       </section>
