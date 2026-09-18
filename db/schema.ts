@@ -8,8 +8,24 @@ export const companies = sqliteTable('companies', {
   id: id(), name: text('name').notNull(), countryCode: text('country_code').notNull().default('UG'), baseCurrency: text('base_currency').notNull().default('UGX'), timezone: text('timezone').notNull().default('Africa/Kampala'), ...timestamps,
 });
 export const users = sqliteTable('users', {
-  id: id(), companyId: text('company_id').notNull().references(() => companies.id), externalIdentityId: text('external_identity_id').notNull(), email: text('email').notNull(), displayName: text('display_name').notNull(), department: text('department'), status: text('status').notNull().default('active'), ...timestamps,
-}, (t) => [uniqueIndex('uq_users_company_external').on(t.companyId, t.externalIdentityId), index('idx_users_company_email').on(t.companyId, t.email)]);
+  id: id(),
+  companyId: text('company_id').notNull().references(() => companies.id),
+  externalIdentityId: text('external_identity_id').notNull(),
+  email: text('email').notNull(),
+  displayName: text('display_name').notNull(),
+  department: text('department'),
+  passwordHash: text('password_hash'),
+  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(true),
+  failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+  lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
+  lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }),
+  passwordChangedAt: integer('password_changed_at', { mode: 'timestamp_ms' }),
+  status: text('status').notNull().default('active'),
+  ...timestamps,
+}, (t) => [
+  uniqueIndex('uq_users_company_external').on(t.companyId, t.externalIdentityId),
+  uniqueIndex('uq_users_company_email').on(t.companyId, t.email),
+]);
 export const roles = sqliteTable('roles', {
   id: id(), companyId: text('company_id').notNull().references(() => companies.id), name: text('name').notNull(), description: text('description'), readOnly: integer('read_only', { mode: 'boolean' }).notNull().default(false), ...timestamps,
 }, (t) => [uniqueIndex('uq_roles_company_name').on(t.companyId, t.name)]);
@@ -19,10 +35,10 @@ export const rolePermissions = sqliteTable('role_permissions', { roleId: text('r
 export const positions = sqliteTable('positions', { id:id(), companyId:text('company_id').notNull().references(()=>companies.id), name:text('name').notNull(), roleId:text('role_id').notNull().references(()=>roles.id), active:integer('active',{mode:'boolean'}).notNull().default(true), ...timestamps },(t)=>[uniqueIndex('uq_positions_company_name').on(t.companyId,t.name),index('idx_positions_role').on(t.roleId)]);
 
 export const customers = sqliteTable('customers', {
-  id: id(), companyId: text('company_id').notNull().references(() => companies.id), code: text('code').notNull(), name: text('name').notNull(), tradingName: text('trading_name'), customerType: text('customer_type').notNull().default('Company'), category: text('category').notNull().default('Other'), industry: text('industry'), tin: text('tin'), vatRegistered: integer('vat_registered', { mode: 'boolean' }).notNull().default(false), registrationNumber: text('registration_number'), website: text('website'), email: text('email'), correspondenceEmail: text('correspondence_email'), phone: text('phone'), secondaryPhone: text('secondary_phone'), country: text('country').notNull().default('Uganda'), district: text('district'), city: text('city'), address: text('address'), postalAddress: text('postal_address'), billingContact: text('billing_contact'), billingEmail: text('billing_email'), preferredCurrency: text('preferred_currency').notNull().default('UGX'), paymentTerms: text('payment_terms').notNull().default('30 days'), dueDays: integer('due_days').notNull().default(30), retentionApplicable: integer('retention_applicable', { mode: 'boolean' }).notNull().default(false), retentionBasisPoints: integer('retention_basis_points').notNull().default(0), creditLimitMinor: text('credit_limit_minor').notNull().default('0'), accountManagerId: text('account_manager_id').references(() => users.id), source: text('source'), firstEngagementAt: integer('first_engagement_at', { mode: 'timestamp_ms' }), notes: text('notes'), tagsJson: text('tags_json'), status: text('status').notNull().default('active'), archivedAt: integer('archived_at', { mode: 'timestamp_ms' }), ...timestamps,
+  id: id(), companyId: text('company_id').notNull().references(() => companies.id), code: text('code').notNull(), name: text('name').notNull(), tradingName: text('trading_name'), customerType: text('customer_type').notNull().default('Company'), category: text('category').notNull().default('Other'), industry: text('industry'), tin: text('tin'), vatRegistered: integer('vat_registered', { mode: 'boolean' }).notNull().default(false), registrationNumber: text('registration_number'), website: text('website'), email: text('email'), correspondenceEmail: text('correspondence_email'), phone: text('phone'), secondaryPhone: text('secondary_phone'), country: text('country').notNull().default('Uganda'), district: text('district'), city: text('city'), address: text('address'), postalAddress: text('postal_address'), billingContact: text('billing_contact'), billingEmail: text('billing_email'), preferredCurrency: text('preferred_currency').notNull().default('UGX'), paymentTerms: text('payment_terms').notNull().default('30 days'), dueDays: integer('due_days').notNull().default(30), retentionApplicable: integer('retention_applicable', { mode: 'boolean' }).notNull().default(false), retentionBasisPoints: integer('retention_basis_points').notNull().default(0), creditLimitMinor: text('credit_limit_minor').notNull().default('0'), accountManagerId: text('account_manager_id').references(() => users.id), source: text('source'), firstEngagementAt: integer('first_engagement_at', { mode: 'timestamp_ms' }), notes: text('notes'), tagsJson: text('tags_json'), status: text('status').notNull().default('active'), archivedAt: integer('archived_at', { mode: 'timestamp_ms' }), sourceSystem: text('source_system'), sourceRef: text('source_ref'), sourceImportedAt: integer('source_imported_at', { mode: 'timestamp_ms' }), ...timestamps,
 }, (t) => [uniqueIndex('uq_customers_company_code').on(t.companyId, t.code), index('idx_customers_company_name').on(t.companyId, t.name), index('idx_customers_company_status').on(t.companyId, t.status), index('idx_customers_company_tin').on(t.companyId, t.tin), index('idx_customers_company_email').on(t.companyId, t.email)]);
 export const suppliers = sqliteTable('suppliers', {
-  id: id(), companyId: text('company_id').notNull().references(() => companies.id), code: text('code').notNull(), name: text('name').notNull(), tin: text('tin'), vatRegistered: integer('vat_registered', { mode: 'boolean' }).notNull().default(false), creditTermsDays: integer('credit_terms_days').notNull().default(0), email: text('email'), phone: text('phone'), status: text('status').notNull().default('active'), ...timestamps,
+  id: id(), companyId: text('company_id').notNull().references(() => companies.id), code: text('code').notNull(), name: text('name').notNull(), tin: text('tin'), vatRegistered: integer('vat_registered', { mode: 'boolean' }).notNull().default(false), creditTermsDays: integer('credit_terms_days').notNull().default(0), email: text('email'), phone: text('phone'), address: text('address'), fax: text('fax'), sourceSystem: text('source_system'), sourceRef: text('source_ref'), sourceImportedAt: integer('source_imported_at', { mode: 'timestamp_ms' }), status: text('status').notNull().default('active'), ...timestamps,
 }, (t) => [uniqueIndex('uq_suppliers_company_code').on(t.companyId, t.code), index('idx_suppliers_company_name').on(t.companyId, t.name)]);
 
 export const bids = sqliteTable('bids', {
@@ -77,7 +93,7 @@ export const supplierBills = sqliteTable('supplier_bills', {
 
 export const fiscalYears = sqliteTable('fiscal_years', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), name: text('name').notNull(), startsAt: integer('starts_at', { mode: 'timestamp_ms' }).notNull(), endsAt: integer('ends_at', { mode: 'timestamp_ms' }).notNull(), status: text('status').notNull().default('open'), ...timestamps }, (t) => [uniqueIndex('uq_fiscal_year_company_name').on(t.companyId, t.name)]);
 export const accountingPeriods = sqliteTable('accounting_periods', { id: id(), fiscalYearId: text('fiscal_year_id').notNull().references(() => fiscalYears.id), name: text('name').notNull(), startsAt: integer('starts_at', { mode: 'timestamp_ms' }).notNull(), endsAt: integer('ends_at', { mode: 'timestamp_ms' }).notNull(), status: text('status').notNull().default('open'), lockedBy: text('locked_by').references(() => users.id), lockedAt: integer('locked_at', { mode: 'timestamp_ms' }) }, (t) => [uniqueIndex('uq_accounting_period_year_name').on(t.fiscalYearId, t.name)]);
-export const accounts = sqliteTable('accounts', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), code: text('code').notNull(), name: text('name').notNull(), type: text('type').notNull(), normalBalance: text('normal_balance').notNull(), parentId: text('parent_id'), active: integer('active', { mode: 'boolean' }).notNull().default(true), ...timestamps }, (t) => [uniqueIndex('uq_accounts_company_code').on(t.companyId, t.code)]);
+export const accounts = sqliteTable('accounts', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), code: text('code').notNull(), name: text('name').notNull(), type: text('type').notNull(), normalBalance: text('normal_balance').notNull(), parentId: text('parent_id'), legacyOpeningBalanceMinor: text('legacy_opening_balance_minor'), legacyOpeningBalanceRaw: text('legacy_opening_balance_raw'), sourceSystem: text('source_system'), sourceRef: text('source_ref'), sourceImportedAt: integer('source_imported_at', { mode: 'timestamp_ms' }), active: integer('active', { mode: 'boolean' }).notNull().default(true), ...timestamps }, (t) => [uniqueIndex('uq_accounts_company_code').on(t.companyId, t.code), index('idx_accounts_source_ref').on(t.companyId,t.sourceSystem,t.sourceRef)]);
 export const journalEntries = sqliteTable('journal_entries', {
   id: id(), companyId: text('company_id').notNull().references(() => companies.id), number: text('number').notNull(), periodId: text('period_id').notNull().references(() => accountingPeriods.id), entryDate: integer('entry_date', { mode: 'timestamp_ms' }).notNull(), sourceType: text('source_type').notNull(), sourceId: text('source_id'), memo: text('memo').notNull(), currency: text('currency').notNull().default('UGX'), status: text('status').notNull().default('draft'), reversalOfId: text('reversal_of_id'), createdBy: text('created_by').notNull().references(() => users.id), postedBy: text('posted_by').references(() => users.id), postedAt: integer('posted_at', { mode: 'timestamp_ms' }), ...timestamps,
 }, (t) => [uniqueIndex('uq_journal_entries_company_number').on(t.companyId, t.number), uniqueIndex('uq_journal_source_idempotency').on(t.companyId, t.sourceType, t.sourceId), index('idx_journal_entries_period_status').on(t.periodId, t.status)]);
@@ -106,6 +122,101 @@ export const approvalRequests = sqliteTable('approval_requests', { id: id(), com
 export const approvalSteps = sqliteTable('approval_steps', { id: id(), requestId: text('request_id').notNull().references(() => approvalRequests.id), sequence: integer('sequence').notNull(), roleId: text('role_id').references(() => roles.id), approverId: text('approver_id').references(() => users.id), status: text('status').notNull().default('pending'), decisionNote: text('decision_note'), decidedAt: integer('decided_at', { mode: 'timestamp_ms' }) }, (t) => [uniqueIndex('uq_approval_step_sequence').on(t.requestId, t.sequence)]);
 export const notifications = sqliteTable('notifications', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), userId: text('user_id').references(() => users.id), type: text('type').notNull(), title: text('title').notNull(), message: text('message').notNull(), entityType: text('entity_type'), entityId: text('entity_id'), priority: text('priority').notNull().default('normal'), readAt: integer('read_at', { mode: 'timestamp_ms' }), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull() }, (t) => [index('idx_notifications_user_read').on(t.userId, t.readAt)]);
 export const auditLogs = sqliteTable('audit_logs', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), userId: text('user_id').references(() => users.id), action: text('action').notNull(), entityType: text('entity_type').notNull(), entityId: text('entity_id').notNull(), oldValueJson: text('old_value_json'), newValueJson: text('new_value_json'), requestId: text('request_id'), ipHash: text('ip_hash'), occurredAt: integer('occurred_at', { mode: 'timestamp_ms' }).notNull() }, (t) => [index('idx_audit_entity_date').on(t.entityType, t.entityId, t.occurredAt), index('idx_audit_company_date').on(t.companyId, t.occurredAt)]);
+
+export const authSessions = sqliteTable('auth_sessions', {
+  id: id(),
+  companyId: text('company_id').notNull().references(() => companies.id),
+  userId: text('user_id').notNull().references(() => users.id),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull(),
+  revokedAt: integer('revoked_at', { mode: 'timestamp_ms' }),
+  ipHash: text('ip_hash'),
+  userAgentHash: text('user_agent_hash'),
+  ...timestamps,
+}, (t) => [uniqueIndex('uq_auth_sessions_token_hash').on(t.tokenHash), index('idx_auth_sessions_user_expiry').on(t.userId,t.expiresAt)]);
+
+export const rateLimitBuckets = sqliteTable('rate_limit_buckets', {
+  id: id(),
+  keyHash: text('key_hash').notNull(),
+  action: text('action').notNull(),
+  windowStart: integer('window_start', { mode: 'timestamp_ms' }).notNull(),
+  count: integer('count').notNull().default(0),
+  blockedUntil: integer('blocked_until', { mode: 'timestamp_ms' }),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [uniqueIndex('uq_rate_limit_key_action').on(t.keyHash,t.action), index('idx_rate_limit_blocked').on(t.blockedUntil)]);
+
+export const securityEvents = sqliteTable('security_events', {
+  id: id(),
+  companyId: text('company_id'),
+  userId: text('user_id'),
+  eventType: text('event_type').notNull(),
+  severity: text('severity').notNull().default('info'),
+  route: text('route'),
+  method: text('method'),
+  requestId: text('request_id'),
+  ipHash: text('ip_hash'),
+  userAgentHash: text('user_agent_hash'),
+  detailsJson: text('details_json'),
+  occurredAt: integer('occurred_at', { mode: 'timestamp_ms' }).notNull(),
+  resolvedAt: integer('resolved_at', { mode: 'timestamp_ms' }),
+}, (t) => [index('idx_security_events_date').on(t.occurredAt), index('idx_security_events_type').on(t.eventType,t.occurredAt)]);
+
+export const dataImportBatches = sqliteTable('data_import_batches', {
+  id: id(),
+  companyId: text('company_id').notNull().references(() => companies.id),
+  sourceSystem: text('source_system').notNull(),
+  sourceFileName: text('source_file_name').notNull(),
+  sourceExportDate: text('source_export_date'),
+  sourceExportTimestamp: text('source_export_timestamp'),
+  status: text('status').notNull().default('pending'),
+  recordCountsJson: text('record_counts_json'),
+  notes: text('notes'),
+  startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+}, (t) => [index('idx_import_batches_company_date').on(t.companyId,t.startedAt)]);
+
+export const recordProvenance = sqliteTable('record_provenance', {
+  id: id(),
+  batchId: text('batch_id').notNull().references(() => dataImportBatches.id),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  sourceRecordType: text('source_record_type').notNull(),
+  sourceRef: text('source_ref'),
+  sourceSnapshotJson: text('source_snapshot_json').notNull(),
+  importedAt: integer('imported_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [uniqueIndex('uq_record_provenance_entity_batch').on(t.batchId,t.entityType,t.entityId), index('idx_record_provenance_source').on(t.sourceRecordType,t.sourceRef)]);
+
+export const catalogItems = sqliteTable('catalog_items', {
+  id: id(),
+  companyId: text('company_id').notNull().references(() => companies.id),
+  name: text('name').notNull(),
+  itemType: text('item_type').notNull(),
+  incomeAccountName: text('income_account_name'),
+  description: text('description'),
+  priceText: text('price_text'),
+  costText: text('cost_text'),
+  taxable: integer('taxable', { mode: 'boolean' }).notNull().default(false),
+  taxCode: text('tax_code'),
+  taxVendor: text('tax_vendor'),
+  preferredVendor: text('preferred_vendor'),
+  sourceSystem: text('source_system').notNull(),
+  sourceRef: text('source_ref').notNull(),
+  sourceImportedAt: integer('source_imported_at', { mode: 'timestamp_ms' }).notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  ...timestamps,
+}, (t) => [uniqueIndex('uq_catalog_source_ref').on(t.companyId,t.sourceSystem,t.sourceRef), index('idx_catalog_name').on(t.companyId,t.name)]);
+
+export const legacyReferenceValues = sqliteTable('legacy_reference_values', {
+  id: id(),
+  companyId: text('company_id').notNull().references(() => companies.id),
+  category: text('category').notNull(),
+  label: text('label').notNull(),
+  sourceRef: text('source_ref').notNull(),
+  metadataJson: text('metadata_json'),
+  sourceSystem: text('source_system').notNull().default('QuickBooks'),
+  importedAt: integer('imported_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [uniqueIndex('uq_legacy_reference_value').on(t.companyId,t.category,t.sourceRef)]);
 export const emailLogs = sqliteTable('email_logs', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), provider: text('provider').notNull(), mode: text('mode').notNull(), recipient: text('recipient').notNull(), subject: text('subject').notNull(), entityType: text('entity_type'), entityId: text('entity_id'), status: text('status').notNull(), providerMessageId: text('provider_message_id'), errorCode: text('error_code'), sentBy: text('sent_by').references(() => users.id), ...timestamps }, (t) => [index('idx_email_logs_entity').on(t.entityType, t.entityId)]);
 export const backupJobs = sqliteTable('backup_jobs', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), type: text('type').notNull(), provider: text('provider').notNull(), status: text('status').notNull(), sizeBytes: integer('size_bytes'), storageDestination: text('storage_destination'), restorePoint: text('restore_point'), verificationStatus: text('verification_status').notNull().default('pending'), requestedBy: text('requested_by').references(() => users.id), ...timestamps });
 export const migrationJobs = sqliteTable('migration_jobs', { id: id(), companyId: text('company_id').notNull().references(() => companies.id), sourceType: text('source_type').notNull(), status: text('status').notNull().default('uploaded'), sourceDocumentId: text('source_document_id').references(() => documents.id), importedCount: integer('imported_count').notNull().default(0), errorCount: integer('error_count').notNull().default(0), reconciliationJson: text('reconciliation_json'), createdBy: text('created_by').notNull().references(() => users.id), ...timestamps });
