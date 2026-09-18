@@ -9,10 +9,21 @@ import {
   scrypt as nodeScrypt,
   timingSafeEqual,
 } from 'node:crypto';
-import { promisify } from 'node:util';
-
-const scrypt = promisify(nodeScrypt);
 const COMPANY_ID = 'company-star-africa';
+function scryptAsync(
+  password: string,
+  salt: Buffer,
+  keyLength: number,
+  options: { N: number; r: number; p: number; maxmem: number },
+) {
+  return new Promise<Buffer>((resolve, reject) => {
+    nodeScrypt(password, salt, keyLength, options, (error, derivedKey) => {
+      if (error) reject(error);
+      else resolve(Buffer.from(derivedKey));
+    });
+  });
+}
+
 const PROD_COOKIE = '__Host-star_africa_session';
 const DEV_COOKIE = 'star_africa_session';
 
@@ -126,7 +137,7 @@ export async function hashPassword(password: string) {
   const N = 16384;
   const r = 8;
   const p = 1;
-  const derived = (await scrypt(password, salt, 32, {
+  const derived = (await scryptAsync(password, salt, 32, {
     N,
     r,
     p,
@@ -143,7 +154,7 @@ export async function verifyPassword(password: string, encoded: string | null) {
   }
   const salt = Buffer.from(saltText, 'base64url');
   const expected = Buffer.from(hashText, 'base64url');
-  const derived = (await scrypt(password, salt, expected.length, {
+  const derived = (await scryptAsync(password, salt, expected.length, {
     N: Number(nText),
     r: Number(rText),
     p: Number(pText),
