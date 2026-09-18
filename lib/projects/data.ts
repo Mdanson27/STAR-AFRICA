@@ -30,7 +30,7 @@ import {
   retentions,
   users,
 } from '@/db/schema';
-import { demoProjects, type ProjectRecord } from './demo-data';
+import type { ProjectRecord } from './types';
 
 const projectSelection = {
   id: projects.id,
@@ -101,32 +101,6 @@ const detailText = (value: string | null, key: string) => {
   }
 };
 
-const demoProjectDetail = (project: ProjectRecord) => ({
-  project,
-  tasks: [],
-  milestones: [],
-  updates: [],
-  materials: [],
-  materialUsage: [],
-  expenses: [],
-  risks: [],
-  issues: [],
-  variations: [],
-  budget: [],
-  activity: [],
-  progress: [],
-  workPlan: [],
-  team: [],
-  labour: [],
-  equipment: [],
-  certificates: [],
-  invoices: [],
-  payments: [],
-  retentions: [],
-  documents: [],
-  procurement: [],
-});
-
 export async function loadProjects(): Promise<ProjectRecord[]> {
   try {
     const db = getDb();
@@ -137,7 +111,7 @@ export async function loadProjects(): Promise<ProjectRecord[]> {
       .leftJoin(projectStages, eq(projects.stageId, projectStages.id))
       .leftJoin(users, eq(projects.projectManagerId, users.id))
       .orderBy(desc(projects.createdAt));
-    if (!rows.length) return demoProjects;
+    if (!rows.length) return [];
     const actual = await db
       .select({
         projectId: projectExpenses.projectId,
@@ -148,12 +122,11 @@ export async function loadProjects(): Promise<ProjectRecord[]> {
     const actualMap = new Map(actual.map((x) => [x.projectId, x.total]));
     return rows.map((row) => normalize(row, actualMap.get(row.id) ?? '0'));
   } catch {
-    return demoProjects;
+    return [];
   }
 }
 
 export async function loadProject(id: string) {
-  const fallback = demoProjects.find((item) => item.id === id);
   try {
     const db = getDb();
     const [row] = await db
@@ -165,11 +138,7 @@ export async function loadProject(id: string) {
       .where(eq(projects.id, id))
       .limit(1);
 
-    // The portfolio deliberately falls back to seeded demonstration projects
-    // when the live project register is empty. Those links must remain valid on
-    // the detail route as well, even when Neon itself is healthy but has no row
-    // with the demonstration id.
-    if (!row) return fallback ? demoProjectDetail(fallback) : null;
+    if (!row) return null;
 
     const [actualRow] = await db
       .select({
@@ -320,6 +289,6 @@ export async function loadProject(id: string) {
       procurement: [...procurement, ...purchaseOrdersForProject],
     };
   } catch {
-    return fallback ? demoProjectDetail(fallback) : null;
+    return null;
   }
 }
