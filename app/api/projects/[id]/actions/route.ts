@@ -39,7 +39,8 @@ import {
   projectActionSchemas,
   type ProjectActionType,
 } from "@/lib/projects/action-schemas";
-import { getSession } from "@/lib/security/session";
+import { guardApi } from "@/lib/security/api-guard";
+import { requestContext } from "@/lib/security/production-auth";
 import { hasPermission } from "@/lib/security/permissions";
 
 const actionPermission: Record<ProjectActionType, string> = {
@@ -100,6 +101,20 @@ async function readPayload(request: Request) {
 }
 
 async function storeFile(file: File, projectId: string) {
+  const allowedTypes = new Set([
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ]);
+  if (file.size > 15 * 1024 * 1024) {
+    throw new Error("Attachment exceeds the 15 MB project-document limit.");
+  }
+  if (!allowedTypes.has(file.type)) {
+    throw new Error("This file type is not permitted for project documents.");
+  }
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
   const documentId = `document-${crypto.randomUUID()}`;
   const storageKey = `projects/${projectId}/${documentId}-${safeName}`;
@@ -125,12 +140,15 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 },
-    );
+  const guard = await guardApi(request, {
+    permission: "projects.view",
+    action: "projects.action",
+    maxRequests: 120,
+    windowMs: 60_000,
+  });
+  if ("response" in guard) return guard.response;
+  const { session } = guard;
+  const security = requestContext(request);
   const incoming = await readPayload(request);
   if (!(incoming.type in projectActionSchemas))
     return NextResponse.json(
@@ -986,6 +1004,8 @@ export async function POST(
         entityType: "project",
         entityId: id,
         newValueJson: json(data),
+        requestId: security.requestId,
+        ipHash: security.ipHash,
         occurredAt: now,
       }),
   );
