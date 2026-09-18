@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/security/session';
-import { hasPermission } from '@/lib/security/permissions';
+import { guardApi } from '@/lib/security/api-guard';
+import { writeAuditLog } from '@/lib/security/production-auth';
 import { generateStatementSnapshot } from '@/lib/customers/server';
 
 type Body = { type?: string; [key: string]: unknown };
@@ -15,14 +15,29 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session)
-    return NextResponse.json(
-      { error: 'Sign in is required.' },
-      { status: 401 },
-    );
   const { id } = await params;
-  const body = (await request.json()) as Body;
+  const body = (await request.json().catch(() => null)) as Body | null;
+  if (!body?.type) {
+    return NextResponse.json({ error: 'Action type is required.' }, { status: 400 });
+  }
+  const permissions: Record<string, string> = {
+    contact: 'customers.contacts.manage',
+    communication: 'customers.communication.manage',
+    note: 'customers.edit',
+    statement: 'customers.statements.generate',
+  };
+  const permission = permissions[body.type];
+  if (!permission) {
+    return NextResponse.json({ error: 'Unsupported customer action.' }, { status: 400 });
+  }
+  const guard = await guardApi(request, {
+    permission,
+    action: `customers.${body.type}`,
+    maxRequests: body.type === 'statement' ? 20 : 60,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
   const customer = await env.DB.prepare(
     'SELECT id,name FROM customers WHERE id=? AND company_id=?',
   )
@@ -32,11 +47,6 @@ export async function POST(
     return NextResponse.json({ error: 'Customer not found.' }, { status: 404 });
   const now = Date.now();
   if (body.type === 'contact') {
-    if (!hasPermission(session.permissions, 'customers.contacts.manage'))
-      return NextResponse.json(
-        { error: 'You do not have permission to manage contacts.' },
-        { status: 403 },
-      );
     const name = value(body, 'name');
     if (
       !name ||
@@ -99,14 +109,10 @@ export async function POST(
       ),
     );
     await env.DB.batch(statements);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.contact.created', entityType: 'customer', entityId: id, newValue: { contactId, name } });
     return NextResponse.json({ id: contactId }, { status: 201 });
   }
   if (body.type === 'communication') {
-    if (!hasPermission(session.permissions, 'customers.communication.manage'))
-      return NextResponse.json(
-        { error: 'You do not have permission to record communication.' },
-        { status: 403 },
-      );
     if (!value(body, 'subject') || !value(body, 'summary'))
       return NextResponse.json(
         { error: 'Subject and summary are required.' },
@@ -167,14 +173,10 @@ export async function POST(
         ),
       );
     await env.DB.batch(statements);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.communication.recorded', entityType: 'customer', entityId: id, newValue: { communicationId, subject: value(body, 'subject') } });
     return NextResponse.json({ id: communicationId }, { status: 201 });
   }
   if (body.type === 'note') {
-    if (!hasPermission(session.permissions, 'customers.edit'))
-      return NextResponse.json(
-        { error: 'You do not have permission to add notes.' },
-        { status: 403 },
-      );
     const note = value(body, 'note');
     if (!note)
       return NextResponse.json({ error: 'Enter a note.' }, { status: 400 });
@@ -205,14 +207,10 @@ export async function POST(
         now,
       ),
     ]);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.note.added', entityType: 'customer', entityId: id, newValue: { noteId, pinned: body.pinned === true } });
     return NextResponse.json({ id: noteId }, { status: 201 });
   }
   if (body.type === 'statement') {
-    if (!hasPermission(session.permissions, 'customers.statements.generate'))
-      return NextResponse.json(
-        { error: 'You do not have permission to generate statements.' },
-        { status: 403 },
-      );
     const from = when(body.from, NaN);
     const to = when(body.to, NaN);
     if (!Number.isFinite(from) || !Number.isFinite(to) || from > to)
@@ -299,6 +297,7 @@ export async function POST(
       ),
     ];
     await env.DB.batch(statements);
+    await writeAuditLog({ request, userId: session.userId, companyId: session.companyId, action: 'customer.statement.generated', entityType: 'customer', entityId: id, newValue: { statementId, statementNumber, from, to, currency } });
     return NextResponse.json(
       { id: statementId, statementNumber },
       { status: 201 },
