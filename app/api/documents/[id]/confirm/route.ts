@@ -4,7 +4,8 @@ import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { documents, receiptRecords } from '@/db/schema';
 import { hasPermission } from '@/lib/security/permissions';
-import { getSession } from '@/lib/security/session';
+import { guardApi } from '@/lib/security/api-guard';
+import { writeAuditLog } from '@/lib/security/production-auth';
 import { makeInternalNumber } from '@/lib/documents/server';
 import { moneyToMinor, type OcrExtraction, type ReceiptFields, type ReceiptLine, safeJson } from '@/lib/documents/types';
 
@@ -22,9 +23,14 @@ function dateMs(value: string) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Sign in is required.' }, { status: 401 });
-  if (!hasPermission(session.permissions, 'documents.verify')) return NextResponse.json({ error: 'You do not have permission to verify OCR results.' }, { status: 403 });
+  const guard = await guardApi(request, {
+    permission: 'documents.verify',
+    action: 'documents.confirm',
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
+  if ('response' in guard) return guard.response;
+  const { session } = guard;
   const { id } = await params;
   const body = await request.json() as ConfirmBody;
   const fields = body.fields;
@@ -60,10 +66,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   statements.push(
     env.DB.prepare("UPDATE documents SET ocr_status='confirmed', verification_status='verified', updated_at=? WHERE id=?").bind(now, id),
-    env.DB.prepare('INSERT INTO audit_logs (id,company_id,user_id,action,entity_type,entity_id,old_value_json,new_value_json,occurred_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(), document.companyId, session.userId, 'document.confirmed', 'document', id, null, JSON.stringify({ receiptId, internalNumber, linkedTo: body.link ?? null, duplicateOverride: Boolean(likelyDuplicate) }), now),
   );
   try {
     await env.DB.batch(statements);
+    await writeAuditLog({
+      request,
+      userId: session.userId,
+      companyId: session.companyId,
+      action: 'document.confirmed',
+      entityType: 'document',
+      entityId: id,
+      newValue: {
+        receiptId,
+        internalNumber,
+        linkedTo: body.link ?? null,
+        duplicateOverride: Boolean(likelyDuplicate),
+      },
+    });
     return NextResponse.json({ id: receiptId, internalNumber, documentId: id });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'The verified receipt could not be saved.' }, { status: 500 });
