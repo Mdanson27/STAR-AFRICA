@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { neon } from '@neondatabase/serverless';
+import { defaultRolePermissions } from './permissions';
 import { cookies } from 'next/headers';
 import {
   createHash,
@@ -334,11 +335,17 @@ export async function getUserAuthorization(userId: string, expiresAt: number) {
   const roleNames = Array.from(
     new Set(rows.map((row) => String(row.role_name ?? '')).filter(Boolean)),
   );
-  const permissions = Array.from(
+  const persistedPermissions = Array.from(
     new Set(rows.map((row) => String(row.permission ?? '')).filter(Boolean)),
   );
   const role = stableRoleKey(roleNames[0] ?? 'USER');
-  if (role === 'SUPER_ADMIN' && !permissions.includes('*')) permissions.push('*');
+  const baselinePermissions = defaultRolePermissions[role] ?? [];
+  const permissions =
+    role === 'SUPER_ADMIN'
+      ? ['*']
+      : Array.from(
+          new Set([...baselinePermissions, ...persistedPermissions]),
+        );
 
   return {
     userId: String(first.user_id),
