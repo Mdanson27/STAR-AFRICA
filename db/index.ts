@@ -7,7 +7,7 @@ type ProxyQuery = { sql: string; params: unknown[]; method: ProxyMethod };
 
 /**
  * The application was originally modelled with Drizzle's SQLite dialect for
- * Cloudflare D1. The demo now runs on Netlify with Neon Postgres. Keeping the
+ * Cloudflare D1. Production V1 runs on Netlify with Neon Postgres. Keeping the
  * existing schema/query builders avoids a risky application-wide rewrite, while
  * this adapter translates SQLite-style positional placeholders to PostgreSQL.
  *
@@ -18,7 +18,7 @@ type ProxyQuery = { sql: string; params: unknown[]; method: ProxyMethod };
 function databaseUrl() {
   const value = process.env.DATABASE_URL;
   if (!value) {
-    throw new Error('DATABASE_URL is not configured for the Star Africa demo.');
+    throw new Error('DATABASE_URL is not configured for Star Africa OS.');
   }
   return value;
 }
@@ -113,7 +113,7 @@ export function getDb() {
     async (queries) => {
       // sqlite-proxy exposes batch as a separate callback. Execute in order so
       // dependent inserts (customer -> project -> activity, etc.) remain
-      // deterministic. The demo APIs already surface any failure to the caller.
+      // deterministic. The application APIs surface any failure to the caller.
       const results = [];
       for (const query of queries) {
         results.push(
