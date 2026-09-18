@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Download, Printer } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,21 +51,6 @@ export default async function ReportDetailPage({
             <p>{definition.description}</p>
           </div>
           <div className="heading-actions">
-            <Button
-              variant="outline"
-              render={<a href={`/api/reports/${slug}?format=csv`} />}
-            >
-              <Download />
-              Download CSV
-            </Button>
-            <Button
-              variant="outline"
-              render={<button type="button" onClick={undefined} />}
-              disabled
-            >
-              <Printer />
-              Print from browser
-            </Button>
           </div>
         </section>
 
