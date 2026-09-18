@@ -18,7 +18,8 @@
     "db:generate": "drizzle-kit generate",
     "db:bootstrap": "node scripts/bootstrap-neon.mjs",
     "db:import-quickbooks": "node scripts/import-quickbooks-master.mjs",
-    "admin:provision": "node scripts/create-production-admin.mjs"
+    "admin:provision": "node scripts/create-production-admin.mjs",
+    "production:cutover": "node scripts/production-cutover.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
