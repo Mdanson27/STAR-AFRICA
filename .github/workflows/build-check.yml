@@ -25,7 +25,8 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     env:
-      STAR_AFRICA_DEMO_MODE: 'true'
+      STAR_AFRICA_MODE: 'production-test'
+      STAR_AFRICA_SECURITY_SECRET: 'ci-only-production-security-secret-not-used-outside-tests'
       DATABASE_URL: postgresql://starafrica:starafrica@127.0.0.1:5432/starafrica_test
       DATABASE_URL_UNPOOLED: postgresql://starafrica:starafrica@127.0.0.1:5432/starafrica_test
     steps:
